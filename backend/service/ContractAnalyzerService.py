@@ -1,14 +1,24 @@
 import json
 import logging
+import os
 from typing import List, Dict, Any
-from ibm_watsonx_ai.client import WatsonxAI 
-from ibm_watsonx_ai.metanames import GenTextParamsMetaNames
 
-from backend.models import ContractAnalysisRequest
+try:
+    from ibm_watsonx_ai.client import WatsonxAI
+    from ibm_watsonx_ai.metanames import GenTextParamsMetaNames
+    IBM_AI_AVAILABLE = True
+except ImportError:
+    # If the import fails, we print a warning and create dummy classes/variables.
+    logging.warning("ibm_watsonx_ai library not found or installation is corrupt. ContractAnalyzerService will run in mock mode.")
+    IBM_AI_AVAILABLE = False
+    class WatsonxAI: pass
+    class GenTextParamsMetaNames: MAX_NEW_TOKENS = "max_new_tokens"; TEMPERATURE = "temperature"
+
+from backend.models.ContractAnalysisModel import ContractAnalysisRequest
 from backend.models.ContractAnalysisResponseModel import ContractAnalysisResponse, ClauseFlag, ComplianceFeedback
 from backend.models.ComplianceRiskScore import ComplianceRiskScore
 from backend.utils.law_loader import LawLoader
-from backend.service.RegulatoryEngineService import RegulatoryEngineService # Assuming you have this service
+from backend.service.RegulatoryEngineService import RegulatoryEngineService 
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +30,21 @@ class ContractAnalyzerService:
         # The AnalyzerService then uses the engine. This is a clean architecture.
         self.law_loader = LawLoader()
         self.regulatory_engine = RegulatoryEngineService(self.law_loader)
-        self.watsonx_client = None # Keep as None for hackathon testing if needed
-
+        self.watsonx_client = None
+        if IBM_AI_AVAILABLE:
+            try:
+                self.watsonx_client = WatsonxAI(
+                    credentials={
+                        "url": os.getenv("IBM_CLOUD_URL"),
+                        "apikey": os.getenv("IBM_API_KEY")
+                    },
+                    project_id=os.getenv("WATSONX_PROJECT_ID")
+                )
+                logger.info("WatsonxAI client initialized successfully.")
+            except Exception as e:
+                logger.error(f"Failed to initialize WatsonxAI client. Ensure credentials are set. Error: {e}")
+                self.watsonx_client = None
+                
     async def analyze_contract(self, request: ContractAnalysisRequest) -> ContractAnalysisResponse:
         """
         Main contract analysis orchestrator. It now uses a single, powerful AI call.
