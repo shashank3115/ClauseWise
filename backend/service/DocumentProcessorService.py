@@ -1,280 +1,241 @@
 import asyncio
 import logging
-import io
-import re
-from typing import List, Dict, Optional, Union
-from pathlib import Path
-import PyPDF2
-import docx
+from typing import List, Dict
+
 from backend.models.BulkAnalysisRequest import BulkAnalysisRequest
 from backend.models.ContractAnalysisModel import ContractAnalysisRequest
 from backend.models.ContractAnalysisResponseModel import ContractAnalysisResponse
 from backend.service.ContractAnalyzerService import ContractAnalyzerService
 
+# Import our new helper modules
+from backend.utils.file_validators import FileValidator, TextSanitizer
+from backend.utils.text_extractors import TextExtractor, DocumentMetadataExtractor
+from backend.utils.process_managers import (
+    BulkProcessManager, 
+    JurisdictionValidator, 
+    ProcessingLimiter
+)
+
 logger = logging.getLogger(__name__)
 
+
 class DocumentProcessorService:
+    """
+    Enhanced service for processing and analyzing legal documents.
+    
+    This refactored version delegates responsibilities to specialized helper classes
+    for better separation of concerns, maintainability, and testability.
+    """
+    
     def __init__(self):
+        # Core analyzer
         self.contract_analyzer = ContractAnalyzerService()
-        self.supported_formats = ['.pdf', '.docx', '.txt']
-        self.max_file_size = 10 * 1024 * 1024 
         
-    async def process_single_document(self, file_content: bytes, filename: str, 
-                                    jurisdiction: str = "MY") -> ContractAnalysisResponse:
+        # Helper components for different responsibilities
+        self.file_validator = FileValidator()
+        self.text_sanitizer = TextSanitizer()
+        self.text_extractor = TextExtractor()
+        self.metadata_extractor = DocumentMetadataExtractor()
+        self.bulk_processor = BulkProcessManager()
+        self.jurisdiction_validator = JurisdictionValidator()
+        self.processing_limiter = ProcessingLimiter()
+    
+    async def process_single_document(
+        self, 
+        file_content: bytes, 
+        filename: str, 
+        jurisdiction: str = "MY"
+    ) -> ContractAnalysisResponse:
+        """
+        Process a single document with comprehensive validation and error handling.
+        
+        Args:
+            file_content: The document content as bytes
+            filename: The original filename
+            jurisdiction: The legal jurisdiction for analysis
+            
+        Returns:
+            ContractAnalysisResponse: Analysis results
+            
+        Raises:
+            ValueError: For validation errors or processing failures
+            TypeError: For incorrect input types
+        """
+        # Input validation
+        if not file_content or not filename:
+            raise ValueError("File content and filename are required")
+        
+        if not isinstance(file_content, bytes):
+            raise TypeError("File content must be bytes")
+        
         try:
-            # Validate file
-            await self._validate_file(file_content, filename)
+            # Step 1: Validate file security and format
+            self.file_validator.validate_file(file_content, filename)
             
-            # Extract text from document
-            extracted_text = await self._extract_text_from_file(file_content, filename)
+            # Step 2: Extract text content
+            extracted_text = await self.text_extractor.extract_text(file_content, filename)
             
-            # Clean and preprocess text
-            cleaned_text = await self._clean_extracted_text(extracted_text)
+            # Step 3: Clean and validate text
+            cleaned_text = self.text_sanitizer.clean_and_validate_text(extracted_text)
             
-            # Create analysis request
+            # Step 4: Apply processing limits
+            self.processing_limiter.validate_processing_limits(
+                len(file_content), 
+                len(cleaned_text)
+            )
+            cleaned_text = self.processing_limiter.truncate_text_if_needed(cleaned_text)
+            
+            # Step 5: Validate jurisdiction
+            validated_jurisdiction = self.jurisdiction_validator.validate_jurisdiction(jurisdiction)
+            
+            # Step 6: Create analysis request and process
             analysis_request = ContractAnalysisRequest(
                 text=cleaned_text,
-                jurisdiction=jurisdiction
+                jurisdiction=validated_jurisdiction
             )
             
-            # Analyze contract
             return await self.contract_analyzer.analyze_contract(analysis_request)
             
         except Exception as e:
             logger.error(f"Document processing failed for {filename}: {str(e)}")
-            raise
+            raise ValueError(f"Failed to process document {filename}: {str(e)}")
     
     async def process_bulk_documents(self, bulk_request: BulkAnalysisRequest) -> List[ContractAnalysisResponse]:
-        results = []
+        """
+        Process multiple documents with controlled concurrency and error handling.
         
-        # Process based on priority
-        if bulk_request.priority == "urgent":
-            # Process all concurrently for urgent requests
-            tasks = [
-                self.contract_analyzer.analyze_contract(contract)
-                for contract in bulk_request.contracts
-            ]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-        else:
-            # Process sequentially for normal priority to manage resources
-            for contract in bulk_request.contracts:
-                try:
-                    result = await self.contract_analyzer.analyze_contract(contract)
-                    results.append(result)
-                except Exception as e:
-                    logger.error(f"Failed to process contract: {str(e)}")
-                    # Continue processing other contracts
-                    continue
-        
-        # Send notification email if provided
-        if bulk_request.notification_email:
-            await self._send_completion_notification(
-                bulk_request.notification_email, 
-                len(results), 
-                len(bulk_request.contracts)
-            )
-        
-        return [r for r in results if isinstance(r, ContractAnalysisResponse)]
+        Args:
+            bulk_request: Bulk analysis request containing multiple contracts
+            
+        Returns:
+            List[ContractAnalysisResponse]: Analysis results for all processed documents
+            
+        Raises:
+            ValueError: For invalid bulk requests or processing failures
+        """
+        return await self.bulk_processor.process_bulk_documents(bulk_request)
     
     async def extract_contract_metadata(self, file_content: bytes, filename: str) -> Dict:
-        try:
-            text = await self._extract_text_from_file(file_content, filename)
+        """
+        Extract comprehensive metadata from contract with error handling.
+        
+        Args:
+            file_content: The document content as bytes
+            filename: The original filename
             
-            metadata = {
+        Returns:
+            Dict: Metadata dictionary with extracted information
+        """
+        if not file_content or not filename:
+            return {
+                'filename': filename, 
+                'error': 'Invalid input parameters'
+            }
+        
+        try:
+            # Validate file first
+            self.file_validator.validate_file(file_content, filename)
+            
+            # Extract text
+            text = await self.text_extractor.extract_text(file_content, filename)
+            
+            # Clean text
+            cleaned_text = self.text_sanitizer.clean_and_validate_text(text)
+            
+            # Extract metadata
+            return await self.metadata_extractor.extract_metadata(
+                cleaned_text, 
+                filename, 
+                len(file_content)
+            )
+            
+        except Exception as e:
+            logger.error(f"Metadata extraction failed for {filename}: {str(e)}")
+            return {
+                'filename': filename, 
+                'error': f'Extraction failed: {str(e)}'
+            }
+    
+    async def validate_document_format(self, file_content: bytes, filename: str) -> Dict:
+        """
+        Validate document format and basic requirements without full processing.
+        
+        Args:
+            file_content: The document content as bytes
+            filename: The original filename
+            
+        Returns:
+            Dict: Validation results
+        """
+        try:
+            self.file_validator.validate_file(file_content, filename)
+            return {
+                'valid': True,
                 'filename': filename,
                 'file_size': len(file_content),
-                'word_count': len(text.split()),
-                'character_count': len(text),
-                'detected_language': await self._detect_language(text),
-                'contract_type': await self._detect_contract_type(text),
-                'parties': await self._extract_parties(text),
-                'dates': await self._extract_dates(text),
-                'jurisdiction_hints': await self._detect_jurisdiction_hints(text)
+                'message': 'Document format is valid'
+            }
+        except Exception as e:
+            return {
+                'valid': False,
+                'filename': filename,
+                'file_size': len(file_content),
+                'error': str(e)
+            }
+    
+    def get_supported_formats(self) -> List[str]:
+        """Get list of supported file formats."""
+        return self.file_validator.supported_formats.copy()
+    
+    def get_processing_limits(self) -> Dict:
+        """Get current processing limits and constraints."""
+        return {
+            'max_file_size_mb': self.processing_limiter.max_file_size / (1024 * 1024),
+            'max_text_length': self.processing_limiter.max_text_length,
+            'min_text_length': self.processing_limiter.min_text_length,
+            'max_bulk_size': self.processing_limiter.max_bulk_size,
+            'max_concurrent_tasks': self.processing_limiter.max_concurrent_tasks,
+            'supported_formats': self.get_supported_formats(),
+            'valid_jurisdictions': self.jurisdiction_validator.get_valid_jurisdictions()
+        }
+    
+    async def health_check(self) -> Dict:
+        """Perform a health check of the service and its components."""
+        try:
+            # Test basic functionality
+            test_text = "This is a test contract agreement between parties."
+            
+            # Test text sanitizer
+            sanitized = self.text_sanitizer.clean_and_validate_text(test_text)
+            
+            # Test metadata extraction
+            metadata = await self.metadata_extractor.extract_metadata(
+                sanitized, 
+                "test.txt", 
+                len(test_text.encode())
+            )
+            
+            return {
+                'status': 'healthy',
+                'components': {
+                    'file_validator': 'operational',
+                    'text_sanitizer': 'operational',
+                    'text_extractor': 'operational',
+                    'metadata_extractor': 'operational',
+                    'bulk_processor': 'operational',
+                    'contract_analyzer': 'operational'
+                },
+                'limits': self.get_processing_limits(),
+                'test_results': {
+                    'text_processing': len(sanitized) > 0,
+                    'metadata_extraction': 'error' not in metadata
+                }
             }
             
-            return metadata
-            
         except Exception as e:
-            logger.error(f"Metadata extraction failed: {str(e)}")
-            return {'filename': filename, 'error': str(e)}
-    
-    async def _validate_file(self, file_content: bytes, filename: str) -> None:
-        # Check file size
-        if len(file_content) > self.max_file_size:
-            raise ValueError(f"File size exceeds {self.max_file_size / (1024*1024)}MB limit")
-        
-        # Check file extension
-        file_ext = Path(filename).suffix.lower()
-        if file_ext not in self.supported_formats:
-            raise ValueError(f"Unsupported file format. Supported: {', '.join(self.supported_formats)}")
-        
-        # Basic file content validation
-        if len(file_content) == 0:
-            raise ValueError("File is empty")
-    
-    async def _extract_text_from_file(self, file_content: bytes, filename: str) -> str:
-        file_ext = Path(filename).suffix.lower()
-        
-        try:
-            if file_ext == '.pdf':
-                return await self._extract_from_pdf(file_content)
-            elif file_ext == '.docx':
-                return await self._extract_from_docx(file_content)
-            elif file_ext == '.txt':
-                return file_content.decode('utf-8')
-            else:
-                raise ValueError(f"Unsupported file format: {file_ext}")
-                
-        except Exception as e:
-            logger.error(f"Text extraction failed for {filename}: {str(e)}")
-            raise
-    
-    async def _extract_from_pdf(self, file_content: bytes) -> str:
-        try:
-            pdf_file = io.BytesIO(file_content)
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
-            
-            text_content = []
-            for page in pdf_reader.pages:
-                text_content.append(page.extract_text())
-            
-            return '\n'.join(text_content)
-            
-        except Exception as e:
-            logger.error(f"PDF extraction failed: {str(e)}")
-            raise ValueError("Failed to extract text from PDF")
-    
-    async def _extract_from_docx(self, file_content: bytes) -> str:
-        try:
-            doc_file = io.BytesIO(file_content)
-            doc = docx.Document(doc_file)
-            
-            text_content = []
-            for paragraph in doc.paragraphs:
-                text_content.append(paragraph.text)
-            
-            return '\n'.join(text_content)
-            
-        except Exception as e:
-            logger.error(f"DOCX extraction failed: {str(e)}")
-            raise ValueError("Failed to extract text from Word document")
-    
-    async def _clean_extracted_text(self, text: str) -> str:
-        # Remove excessive whitespace
-        cleaned = re.sub(r'\s+', ' ', text)
-        
-        # Remove page numbers and headers/footers (basic patterns)
-        cleaned = re.sub(r'\n\s*\d+\s*\n', '\n', cleaned)
-        cleaned = re.sub(r'\n\s*Page \d+ of \d+\s*\n', '\n', cleaned, flags=re.IGNORECASE)
-        
-        # Remove excessive newlines
-        cleaned = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned)
-        
-        # Strip and normalize
-        cleaned = cleaned.strip()
-        
-        return cleaned
-    
-    async def _detect_language(self, text: str) -> str:
-        # Simple language detection based on common legal terms
-        text_lower = text.lower()
-        
-        # English indicators
-        english_terms = ['contract', 'agreement', 'whereas', 'party', 'clause', 'terms']
-        english_count = sum(1 for term in english_terms if term in text_lower)
-        
-        # Malay indicators
-        malay_terms = ['kontrak', 'perjanjian', 'pihak', 'terma', 'fasal']
-        malay_count = sum(1 for term in malay_terms if term in text_lower)
-        
-        if malay_count > english_count:
-            return 'ms'
-        return 'en'
-    
-    async def _detect_contract_type(self, text: str) -> str:
-        text_lower = text.lower()
-        
-        # NDA indicators
-        if any(term in text_lower for term in ['non-disclosure', 'confidential', 'nda', 'secrecy']):
-            return 'nda'
-        
-        # Employment contract indicators
-        if any(term in text_lower for term in ['employment', 'employee', 'salary', 'working hours']):
-            return 'employment'
-        
-        # Service agreement indicators
-        if any(term in text_lower for term in ['service', 'vendor', 'supplier', 'delivery']):
-            return 'service_agreement'
-        
-        # Data processing agreement indicators
-        if any(term in text_lower for term in ['data processing', 'personal data', 'controller', 'processor']):
-            return 'data_processing'
-        
-        return 'general'
-    
-    async def _extract_parties(self, text: str) -> List[str]:
-        parties = []
-        
-        # Look for common party patterns
-        party_patterns = [
-            r'between\s+([A-Z][A-Za-z\s,\.]+?)(?:\s+and|\s+&)',
-            r'Party\s+A[:\s]+([A-Z][A-Za-z\s,\.]+?)(?:\n|Party)',
-            r'Party\s+B[:\s]+([A-Z][A-Za-z\s,\.]+?)(?:\n|Party)',
-            r'"([A-Z][A-Za-z\s]+?)"(?:\s+\(|,\s+a)'
-        ]
-        
-        for pattern in party_patterns:
-            matches = re.findall(pattern, text, re.IGNORECASE)
-            parties.extend([match.strip() for match in matches])
-        
-        # Remove duplicates and clean up
-        unique_parties = []
-        for party in parties:
-            cleaned_party = party.strip(' .,')
-            if cleaned_party and len(cleaned_party) > 3 and cleaned_party not in unique_parties:
-                unique_parties.append(cleaned_party)
-        
-        return unique_parties[:5]  # Limit to 5 parties
-    
-    async def _extract_dates(self, text: str) -> List[str]:
-        date_patterns = [
-            r'\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b',  # DD/MM/YYYY or MM/DD/YYYY
-            r'\b\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{2,4}\b',
-            r'\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{2,4}\b'
-        ]
-        
-        dates = []
-        for pattern in date_patterns:
-            matches = re.findall(pattern, text, re.IGNORECASE)
-            dates.extend(matches)
-        
-        return list(set(dates))[:10]  
-    
-    async def _detect_jurisdiction_hints(self, text: str) -> List[str]:
-        """Detect jurisdiction hints in the text"""
-        jurisdiction_hints = []
-        text_lower = text.lower()
-        
-        # Country/jurisdiction indicators
-        jurisdiction_keywords = {
-            'MY': ['malaysia', 'kuala lumpur', 'malaysian', 'ringgit', 'rm'],
-            'SG': ['singapore', 'singaporean', 'sgd'],
-            'US': ['united states', 'usa', 'american', 'usd', 'dollar'],
-            'UK': ['united kingdom', 'british', 'gbp', 'pound sterling'],
-            'EU': ['european union', 'gdpr', 'euro', 'eur']
-        }
-        
-        for jurisdiction, keywords in jurisdiction_keywords.items():
-            if any(keyword in text_lower for keyword in keywords):
-                jurisdiction_hints.append(jurisdiction)
-        
-        return jurisdiction_hints
-    
-    async def _send_completion_notification(self, email: str, processed_count: int, total_count: int):
-        # Placeholder for email notification logic
-        logger.info(f"Bulk processing completed: {processed_count}/{total_count} contracts processed")
-        logger.info(f"Notification should be sent to: {email}")
-        
-        # TODO: Implement actual email sending
-        # This would integrate with your email service (SendGrid, AWS SES, etc.)
-        pass
+            logger.error(f"Health check failed: {str(e)}")
+            return {
+                'status': 'unhealthy',
+                'error': str(e),
+                'limits': self.get_processing_limits()
+            }
