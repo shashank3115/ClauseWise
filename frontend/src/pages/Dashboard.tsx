@@ -1,15 +1,14 @@
 import { FileText, Gauge, AlertCircle, Upload, FileSearch, ChevronRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 export default function Dashboard() {
-    // Replace with backend data
+    // Data for stats (change to backend data)
     const stats = [
-        { title: "Contracts Analyzed", value: "142", icon: <FileText className="w-5 h-5" />, trend: "up" },
-        { title: "Compliance Rate", value: "87%", icon: <Gauge className="w-5 h-5" />, trend: "up" },
-        { title: "Alerts Detected", value: "23", icon: <AlertCircle className="w-5 h-5" />, trend: "down" }
+        { title: "Contracts Analyzed", value: "142", icon: <FileText className="w-5 h-5" />, trend: "up", change: "12%" },
+        { title: "Compliance Rate", value: "87%", icon: <Gauge className="w-5 h-5" />, trend: "up", change: "5%" },
+        { title: "Alerts Detected", value: "23", icon: <AlertCircle className="w-5 h-5" />, trend: "down", change: "3%" }
     ];
 
-    // Replace with backend data
+    // Data for recent activities (change to backend data)
     const recentActivities = [
         { id: 1, contract: "Employment Agreement", time: "10 mins ago", risk: "medium" },
         { id: 2, contract: "NDA with TechCorp", time: "2 hours ago", risk: "low" },
@@ -17,141 +16,126 @@ export default function Dashboard() {
     ];
 
     return (
-    <div className="min-h-screen bg-gray-50">
-        {/* Navigations add here */}
-        <nav className="bg-white border-b border-gray-200">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between h-16">
-                    <div className="flex items-center">
-                        <div className="flex-shrink-0 flex items-center">
-                            <div className="w-8 h-8 rounded-md flex items-center justify-center">
-                                <FileText className="w-5 h-5 text-white" />
-                            </div>
-                            <span className="ml-2 text-xl font-bold text-gray-900">LegalGuard</span>
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 to-slate-950 text-gray-100 font-sans antialiased">
+            <header className="w-full sticky top-0 z-50 bg-gradient-to-br from-[#1e40af] to-slate-900 backdrop-blur-sm bg-opacity-90 shadow-2xl">
+                <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-[#1e40af] w-10 h-10 flex items-center justify-center rounded-md shadow-lg">
+                            <FileText className="text-white w-6 h-6" />
                         </div>
+                        <span className="text-2xl font-bold text-white tracking-wide">LegalGuard</span>
                     </div>
 
-                    {/* Navigation links here (middle) */}
+                    <nav className="hidden md:flex items-center gap-7 text-sm font-medium">
+                        <a href="#" className="text-blue-300 hover:text-white transition-colors duration-200">Dashboard</a>
+                        <a href="#" className="text-gray-300 hover:text-blue-300 transition-colors duration-200">Analyze</a>
+                        <a href="#" className="text-gray-300 hover:text-blue-300 transition-colors duration-200">Compliance</a>
+                        <a href="#" className="text-gray-300 hover:text-blue-300 transition-colors duration-200">Regulations</a>
+                    </nav>
 
-                    <div className="flex items-center ml-6">
-                        <div className="h-8 w-8 rounded-full bg-gradient-to-r from-[#1e40af] to-[#3b82f6] flex items-center justify-center text-white font-medium">
-                            AU
-                            {/* User icon here maybe */}
-                        </div>
+                    <div className="flex items-center gap-3">
+                        <a href="#" className="text-blue-300 hover:bg-blue-800/30 px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 border border-transparent hover:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900">Sign In</a>
+                        <a href="#" className="bg-[#1e40af] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-800 transition-colors duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900">Register</a>
                     </div>
                 </div>
-            </div>
-        </nav>
+            </header>
 
-        {/* Hero Section */}
-        <div className="w-full bg-gradient-to-r from-[#1e40af] to-[#3b82f6]">
-            <div className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
-                <div className="text-center">
-                    <h1 className="text-4xl font-bold text-white mb-4">Streamline Your Legal Compliance</h1>
-                    <p className="text-xl text-blue-100 mb-8 max-w-3xl mx-auto">
-                        Automated contract analysis and regulatory compliance monitoring across multiple jurisdictions
+            <section className="relative py-24 px-4 sm:px-6 lg:px-8 text-center overflow-hidden">
+                {/* If want can put a bg image at hero section */}
+                <div className="absolute inset-0" style={{ backgroundImage: '")', backgroundSize: 'cover', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}>
+                    <div className="absolute inset-0 bg-blue-950 opacity-40 mix-blend-multiply"></div>
+                </div>
+                <div className="relative max-w-4xl mx-auto z-10">
+                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-6 leading-tight drop-shadow-2xl">
+                        Automated Legal Compliance for Modern Businesses
+                    </h1>
+                    <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto opacity-90 font-medium leading-relaxed">
+                        Streamline your contract analysis and regulatory compliance across multiple jurisdictions with our AI-powered platform.
                     </p>
-                    {/* Maybe some actions here */}
                 </div>
-            </div>
-        </div>
+            </section>
 
-        {/* Main section */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            {/* Quick stats cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-                {stats.map((stat, index) => (
-                    <div key={index} className="bg-white p-6 rounded-xl shadow-md border border-gray-100 hover:shadow-lg transition-shadow">
-                        <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 rounded-lg bg-blue-50 text-[#1e40af]">
+            <section className="py-20 px-4 sm:px-6 lg:px-8">
+                <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {stats.map((stat, index) => (
+                        <div
+                            key={index}
+                            className="bg-slate-800 p-6 rounded-lg shadow-2xl hover:shadow-blue-500/40 border border-slate-700
+                                transform hover:-translate-y-2 hover:scale-105 transition-all duration-300 ease-in-out cursor-pointer"
+                        >
+                            <div className="flex items-start gap-5">
+                                <div className="p-3 rounded-xl bg-blue-900/60 text-blue-300 flex-shrink-0 shadow-inner">
                                     {stat.icon}
                                 </div>
-                                <div>
-                                    <p className="text-gray-500 text-sm font-medium">{stat.title}</p>
-                                    <p className="text-3xl font-bold mt-1">{stat.value}</p>
+                                <div className="flex-grow">
+                                    <p className="text-sm text-gray-300 font-medium uppercase tracking-wider mb-1 leading-snug">{stat.title}</p>
+                                    <p className="text-4xl font-extrabold text-white mt-1 mb-2 leading-none">{stat.value}</p>
+                                    <p className={`text-sm mt-2 font-semibold ${stat.trend === 'up' ? 'text-green-600' : 'text-red-600'} leading-snug`}>
+                                        {stat.change} {stat.trend === 'up' ? 'increase' : 'decrease'} from last month
+                                    </p>
                                 </div>
-                            </div>
-                            {stat.trend === "up" ? (
-                                <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
-                                    ↑ 12%
-                                </span>
-                            ) : (
-                            <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
-                                ↓ 5%
-                            </span>
-                        )}
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Recent activity feed */}
-            <div className="bg-white rounded-xl shadow-md overflow-hidden mb-12">
-                <div className="p-6 border-b border-gray-200">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-semibold">Recent Activity</h2>
-                        <Link to="/activity" className="text-[#1e40af] hover:underline flex items-center gap-1">
-                            View all <ChevronRight className="w-4 h-4" />
-                            {/* Do we want to view all? */}
-                        </Link>
-                    </div>
-                </div>
-                <div className="divide-y divide-gray-100">
-                    {recentActivities.map(activity => (
-                        <div key={activity.id} className="p-6 hover:bg-gray-50 transition-colors">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className={`p-2 rounded-lg ${
-                                        activity.risk === 'high' ? 'bg-red-100 text-red-600' :
-                                        activity.risk === 'medium' ? 'bg-amber-100 text-amber-600' :'bg-green-100 text-green-600'
-                                    }`}>
-                                        <FileText className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <p className="font-medium">{activity.contract}</p>
-                                        <p className="text-sm text-gray-500 mt-1">{activity.time}</p>
-                                    </div>
-                                </div>
-                                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                    activity.risk === 'high' ? 'bg-red-100 text-red-800' :
-                                    activity.risk === 'medium' ? 'bg-amber-100 text-amber-800' :'bg-green-100 text-green-800'
-                                    }`}>
-                                        {activity.risk} risk
-                                </span>
                             </div>
                         </div>
                     ))}
                 </div>
-            </div>
+            </section>
 
-            {/* Quick actions section/buttons */}
-            <div>
-                <h2 className="text-xl font-semibold mb-6">Quick Actions</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <Link to="/analyze" className="bg-white p-6 rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition-all flex items-center gap-4 group">
-                        <div className="p-3 rounded-lg bg-blue-100 text-[#1e40af] group-hover:bg-blue-200 transition-colors">
-                            <Upload className="w-6 h-6" />
+            <section className="py-16 px-4 sm:px-6 lg:px-8">
+                <div className="max-w-6xl mx-auto grid lg:grid-cols-3 gap-10">
+                    <div className="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl">
+                        <div className="flex justify-between items-center px-6 py-5 border-b border-slate-700/50">
+                            <h2 className="text-xl font-semibold text-blue-300">Recent Activity</h2>
+                            <a href="#" className="text-blue-300 text-sm hover:underline flex items-center gap-1 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                                View all <ChevronRight className="w-4 h-4" />
+                            </a>
                         </div>
-                        <div>
-                            <h3 className="font-medium text-lg">Upload Contract</h3>
-                            <p className="text-gray-500 mt-1">Analyze a single contract document</p>
+                        <div className="divide-y divide-slate-700/50">
+                            {recentActivities.map((activity) => (
+                                <div key={activity.id} className="px-6 py-4 flex justify-between items-center hover:bg-slate-700/20 transition-colors duration-200 cursor-pointer">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`p-2 rounded-md ${activity.risk === 'high' ? 'bg-red-700/20 text-red-600' : activity.risk === 'medium' ? 'bg-amber-700/20 text-amber-600' : 'bg-green-700/20 text-green-600'} flex-shrink-0 shadow-sm`}>
+                                            <FileText className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <p className="text-base font-medium text-white leading-snug">{activity.contract}</p>
+                                            <p className="text-xs text-gray-300 mt-0.5 leading-snug">{activity.time}</p>
+                                        </div>
+                                    </div>
+                                    <span className={`text-xs px-3 py-1 rounded-full font-semibold ${activity.risk === 'high' ? 'bg-red-700/30 text-red-300' : activity.risk === 'medium' ? 'bg-amber-700/30 text-amber-200' : 'bg-green-700/30 text-green-200'} border border-opacity-20 ${activity.risk === 'high' ? 'border-red-500' : activity.risk === 'medium' ? 'border-amber-500' : 'border-green-500'}`}>
+                                        {activity.risk} risk
+                                    </span>
+                                </div>
+                            ))}
                         </div>
-                        <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
-                    </Link>
-                    <Link to="/reports" className="bg-white p-6 rounded-xl shadow-md border border-gray-200 hover:shadow-lg transition-all flex items-center gap-4 group">
-                        <div className="p-3 rounded-lg bg-purple-100 text-purple-600 group-hover:bg-purple-200 transition-colors">
-                            <FileSearch className="w-6 h-6" />
+                    </div>
+
+                    <aside className="lg:col-span-1 bg-slate-800 border border-slate-700 rounded-lg p-6 shadow-2xl sticky top-24 h-fit">
+                        <h3 className="text-xl font-semibold text-blue-300 mb-5">Quick Actions</h3>
+                        <div className="space-y-4">
+                            <a href="#" className="flex items-center gap-4 p-4 border border-slate-700 rounded-md hover:bg-slate-700/20 group transform hover:translate-x-1 hover:shadow-md transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                                <div className="p-3 bg-blue-700/50 text-blue-200 rounded-md group-hover:bg-blue-700/70 flex-shrink-0 shadow-sm">
+                                    <Upload className="w-5 h-5" />
+                                </div>
+                                <div className="flex-grow">
+                                    <h4 className="text-base font-medium text-white leading-snug">Upload Contract</h4>
+                                    <p className="text-xs text-gray-300 mt-0.5 leading-snug">Analyze a single document</p>
+                                </div>
+                                <ChevronRight className="ml-auto w-5 h-5 text-blue-400 group-hover:translate-x-1 transition-transform duration-200" />
+                            </a>
+                            <a href="#" className="flex items-center gap-4 p-4 border border-slate-700 rounded-md hover:bg-slate-700/20 group transform hover:translate-x-1 hover:shadow-md transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                                <div className="p-3 bg-blue-600/50 text-blue-100 rounded-md group-hover:bg-blue-600/70 flex-shrink-0 shadow-sm">
+                                    <FileSearch className="w-5 h-5" />
+                                </div>
+                                <div className="flex-grow">
+                                    <h4 className="text-base font-medium text-white leading-snug">View Reports</h4>
+                                    <p className="text-xs text-gray-300 mt-0.5 leading-snug">Access compliance reports</p>
+                                </div>
+                                <ChevronRight className="ml-auto w-5 h-5 text-blue-400 group-hover:translate-x-1 transition-transform duration-200" />
+                            </a>
                         </div>
-                        <div>
-                            <h3 className="font-medium text-lg">View Reports</h3>
-                            <p className="text-gray-500 mt-1">Access your compliance reports</p>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-gray-400 ml-auto" />
-                    </Link>
+                    </aside>
                 </div>
-            </div>
-        </main>
-    </div>
+            </section>
+        </div>
     );
 }
