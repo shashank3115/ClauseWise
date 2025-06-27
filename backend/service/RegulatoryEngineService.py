@@ -3,7 +3,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 # Make sure the LawLoader class is importable from its location
-from ..utils.law_loader import LawLoader
+from utils.law_loader import LawLoader
 
 # Configure logging to see the output from the loader and the service
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
