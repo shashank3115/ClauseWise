@@ -1,4 +1,5 @@
 import { FileText, Gauge, AlertCircle, Upload, FileSearch, ChevronRight } from 'lucide-react';
+import Header from '../components/layout/Header';
 
 export default function Dashboard() {
     // Data for stats (change to backend data)
@@ -17,28 +18,7 @@ export default function Dashboard() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 to-slate-950 text-gray-100 font-sans antialiased">
-            <header className="w-full sticky top-0 z-50 bg-gradient-to-br from-[#1e40af] to-slate-900 backdrop-blur-sm bg-opacity-90 shadow-2xl">
-                <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-[#1e40af] w-10 h-10 flex items-center justify-center rounded-md shadow-lg">
-                            <FileText className="text-white w-6 h-6" />
-                        </div>
-                        <span className="text-2xl font-bold text-white tracking-wide">LegalGuard</span>
-                    </div>
-
-                    <nav className="hidden md:flex items-center gap-7 text-sm font-medium">
-                        <a href="#" className="text-blue-300 hover:text-white transition-colors duration-200">Dashboard</a>
-                        <a href="#" className="text-gray-300 hover:text-blue-300 transition-colors duration-200">Analyze</a>
-                        <a href="#" className="text-gray-300 hover:text-blue-300 transition-colors duration-200">Compliance</a>
-                        <a href="#" className="text-gray-300 hover:text-blue-300 transition-colors duration-200">Regulations</a>
-                    </nav>
-
-                    <div className="flex items-center gap-3">
-                        <a href="#" className="text-blue-300 hover:bg-blue-800/30 px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 border border-transparent hover:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900">Sign In</a>
-                        <a href="#" className="bg-[#1e40af] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-800 transition-colors duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900">Register</a>
-                    </div>
-                </div>
-            </header>
+            <Header></Header>
 
             <section className="relative py-24 px-4 sm:px-6 lg:px-8 text-center overflow-hidden">
                 {/* If want can put a bg image at hero section */}
