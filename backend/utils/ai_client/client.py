@@ -5,6 +5,7 @@ Main WatsonX AI client implementation.
 import requests
 import logging
 from typing import Dict, Any, Optional
+import re
 
 from .config import WatsonXConfig
 from .auth import IBMCloudAuth
@@ -79,7 +80,7 @@ class WatsonXClient:
                 "temperature": self.config.temperature,
                 "max_new_tokens": self.config.max_tokens,
                 "top_p": self.config.top_p,
-                "stop_sequences": ["</json>", "\n\n---"],
+                "stop_sequences": [],  # Remove stop sequences that might truncate JSON
                 "include_stop_sequence": False
             },
             "input": formatted_prompt
@@ -87,12 +88,22 @@ class WatsonXClient:
         
         try:
             logger.debug(f"Making request to WatsonX API: {self.config.base_url}")
+            logger.debug(f"Request body: {body}")
             response = requests.post(
                 self.config.base_url,
                 headers=headers,
                 json=body,
                 timeout=self.config.timeout
             )
+            
+            # Log response details for debugging
+            logger.debug(f"Response status: {response.status_code}")
+            logger.debug(f"Response headers: {dict(response.headers)}")
+            
+            if response.status_code != 200:
+                logger.error(f"API request failed with status {response.status_code}")
+                logger.error(f"Response body: {response.text}")
+            
             response.raise_for_status()
             
             result = response.json()
@@ -100,7 +111,10 @@ class WatsonXClient:
             if "results" in result and len(result["results"]) > 0:
                 generated_text = result["results"][0]["generated_text"]
                 logger.debug(f"Successfully received response from WatsonX")
-                return generated_text
+                
+                # Clean the response to extract just the JSON part
+                cleaned_response = self._extract_json_from_response(generated_text)
+                return cleaned_response
             else:
                 logger.error(f"Unexpected response format: {result}")
                 raise ResponseParsingError("Invalid response format from WatsonX", str(result))
@@ -208,3 +222,205 @@ class WatsonXClient:
         except Exception as e:
             logger.error(f"Health check failed: {e}")
             return False
+    
+    def _extract_json_from_response(self, response_text: str) -> str:
+        """
+        Extract JSON content from AI response that may contain extra text.
+        
+        Args:
+            response_text: Raw response from the AI model
+            
+        Returns:
+            Cleaned JSON string
+        """
+        import json
+        
+        # First, try to find complete JSON object in the response
+        json_pattern = r'\{.*?\}'
+        matches = re.findall(json_pattern, response_text, re.DOTALL)
+        
+        for match in matches:
+            try:
+                # Test if this is valid JSON
+                parsed = json.loads(match)
+                
+                # Check if it looks like a complete contract analysis response
+                if self._is_complete_analysis_response(parsed):
+                    # Normalize the compliance issues in the complete response
+                    normalized_response = self._normalize_complete_response(parsed)
+                    logger.debug(f"Found valid complete JSON in response (length: {len(match)})")
+                    return json.dumps(normalized_response)
+                elif self._is_partial_compliance_issue(parsed):
+                    # Wrap partial response in complete structure
+                    logger.debug(f"Found partial compliance issue, wrapping in complete structure")
+                    wrapped = self._wrap_partial_response(parsed)
+                    return json.dumps(wrapped)
+                else:
+                    logger.debug(f"Found valid JSON but unknown structure, using as-is")
+                    return match
+                    
+            except json.JSONDecodeError:
+                continue
+        
+        # If no complete JSON found, try to extract and repair incomplete JSON
+        lines = response_text.strip().split('\n')
+        json_lines = []
+        in_json = False
+        brace_count = 0
+        
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith('{') and not in_json:
+                in_json = True
+                brace_count = 1
+                json_lines.append(line)
+            elif in_json:
+                json_lines.append(line)
+                brace_count += stripped.count('{') - stripped.count('}')
+                
+                # If braces are balanced, we have complete JSON
+                if brace_count == 0:
+                    break
+        
+        if json_lines:
+            potential_json = '\n'.join(json_lines)
+            
+            # Try to parse as-is first
+            try:
+                parsed = json.loads(potential_json)
+                if self._is_partial_compliance_issue(parsed):
+                    wrapped = self._wrap_partial_response(parsed)
+                    return json.dumps(wrapped)
+                else:
+                    logger.debug(f"Extracted valid JSON by line parsing (length: {len(potential_json)})")
+                    return potential_json
+            except json.JSONDecodeError:
+                # Try to repair incomplete JSON
+                repaired_json = self._attempt_json_repair(potential_json)
+                if repaired_json:
+                    logger.debug(f"Successfully repaired incomplete JSON")
+                    return repaired_json
+        
+        # If all else fails, return a default structure with error message
+        logger.warning(f"Could not extract or repair JSON from response, returning fallback")
+        fallback = {
+            "summary": "Error: Could not parse AI response",
+            "flagged_clauses": [],
+            "compliance_issues": []
+        }
+        return json.dumps(fallback)
+    
+    def _is_complete_analysis_response(self, parsed_json: dict) -> bool:
+        """Check if JSON contains expected contract analysis structure."""
+        required_keys = {"summary", "flagged_clauses", "compliance_issues"}
+        return required_keys.issubset(set(parsed_json.keys()))
+    
+    def _is_partial_compliance_issue(self, parsed_json: dict) -> bool:
+        """Check if JSON looks like a single compliance issue object."""
+        compliance_issue_keys = {"law", "missing_requirements", "recommendations"}
+        return compliance_issue_keys.issubset(set(parsed_json.keys()))
+    
+    def _wrap_partial_response(self, partial_json: dict) -> dict:
+        """Wrap a partial compliance issue in the expected complete structure."""
+        # Normalize the compliance issue data
+        normalized_issue = self._normalize_compliance_issue(partial_json)
+        
+        return {
+            "summary": f"Contract analysis found issues with {partial_json.get('law', 'compliance requirements')}",
+            "flagged_clauses": [],
+            "compliance_issues": [normalized_issue]
+        }
+    
+    def _normalize_complete_response(self, response: dict) -> dict:
+        """Normalize a complete response to ensure proper data types."""
+        normalized = response.copy()
+        
+        # Normalize compliance issues
+        if "compliance_issues" in normalized and normalized["compliance_issues"]:
+            normalized_issues = []
+            for issue in normalized["compliance_issues"]:
+                normalized_issues.append(self._normalize_compliance_issue(issue))
+            normalized["compliance_issues"] = normalized_issues
+        
+        return normalized
+    
+    def _normalize_compliance_issue(self, issue: dict) -> dict:
+        """Normalize a compliance issue to ensure proper data types."""
+        normalized = issue.copy()
+        
+        # Ensure missing_requirements is a list
+        if "missing_requirements" in normalized:
+            req = normalized["missing_requirements"]
+            if isinstance(req, str):
+                # Convert single string to list
+                normalized["missing_requirements"] = [req] if req else []
+            elif not isinstance(req, list):
+                # Convert other types to list
+                normalized["missing_requirements"] = [str(req)]
+        
+        # Ensure recommendations is a list
+        if "recommendations" in normalized:
+            rec = normalized["recommendations"]
+            if isinstance(rec, str):
+                # Convert single string to list
+                normalized["recommendations"] = [rec] if rec else []
+            elif not isinstance(rec, list):
+                # Convert other types to list
+                normalized["recommendations"] = [str(rec)]
+        
+        return normalized
+    
+    def _attempt_json_repair(self, incomplete_json: str) -> str:
+        """
+        Attempt to repair incomplete JSON by adding missing closing braces/brackets.
+        
+        Args:
+            incomplete_json: Potentially incomplete JSON string
+            
+        Returns:
+            Repaired JSON string or None if repair failed
+        """
+        import json
+        
+        # Count open vs closed braces and brackets
+        open_braces = incomplete_json.count('{')
+        close_braces = incomplete_json.count('}')
+        open_brackets = incomplete_json.count('[')
+        close_brackets = incomplete_json.count(']')
+        
+        # Try to complete the JSON
+        repaired = incomplete_json.strip()
+        
+        # If we're missing closing brackets, add them
+        missing_brackets = open_brackets - close_brackets
+        missing_braces = open_braces - close_braces
+        
+        # Add missing closing brackets first
+        for _ in range(missing_brackets):
+            repaired += ']'
+        
+        # Add missing closing braces
+        for _ in range(missing_braces):
+            repaired += '}'
+        
+        # Test if the repair worked
+        try:
+            json.loads(repaired)
+            return repaired
+        except json.JSONDecodeError:
+            # If simple repair failed, try adding minimal structure
+            if incomplete_json.strip().endswith(','):
+                # Remove trailing comma and try again
+                repaired = incomplete_json.strip().rstrip(',')
+                for _ in range(missing_brackets):
+                    repaired += ']'
+                for _ in range(missing_braces):
+                    repaired += '}'
+                
+                try:
+                    json.loads(repaired)
+                    return repaired
+                except json.JSONDecodeError:
+                    pass
+            
+            return None

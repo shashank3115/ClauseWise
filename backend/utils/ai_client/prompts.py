@@ -7,29 +7,16 @@ class PromptFormatter:
     SYSTEM_MESSAGES = {
         "default": "You are LegalGuard AI, an expert legal technology assistant. You analyze contracts and provide structured JSON responses.",
         
-        "contract_analysis": """You are LegalGuard AI, an expert legal compliance assistant. 
+        "contract_analysis": """You are LegalGuard AI, a legal compliance expert.
 
-CRITICAL INSTRUCTIONS:
-1. Analyze the contract text against the provided compliance checklist
-2. Return ONLY a valid JSON object with no markdown formatting or additional text
-3. The JSON must follow this exact structure:
-{
-  "summary": "Brief summary of compliance status",
-  "flagged_clauses": [
-    {
-      "clause_text": "exact problematic text",
-      "issue": "detailed explanation of the issue",
-      "severity": "high|medium|low"
-    }
-  ],
-  "compliance_issues": [
-    {
-      "law_id": "law identifier from checklist",
-      "missing_requirements": ["list of missing requirements"],
-      "recommendations": ["list of specific recommendations"]
-    }
-  ]
-}""",
+Analyze contracts for compliance violations and missing requirements. 
+
+You must return a complete JSON response with these three required keys:
+1. summary - your overall assessment
+2. flagged_clauses - array of problematic contract sections 
+3. compliance_issues - array of missing requirements or violations
+
+Return only the JSON object, nothing else.""",
         
         "metadata_extraction": "You are a legal document analyzer. Extract metadata from contracts and return structured JSON.",
         
@@ -51,14 +38,12 @@ CRITICAL INSTRUCTIONS:
         if system_message is None:
             system_message = PromptFormatter.SYSTEM_MESSAGES["default"]
         
-        return f"""<|system|>
-{system_message}
+        # Granite models work better with a simpler format and explicit completion instruction
+        return f"""{system_message}
 
-<|user|>
 {prompt}
 
-<|assistant|>
-"""
+Complete JSON response:"""
     
     @staticmethod
     def build_contract_analysis_prompt(contract_text: str, compliance_checklist: Dict[str, Any]) -> str:
@@ -74,21 +59,18 @@ CRITICAL INSTRUCTIONS:
         """
         checklist_str = json.dumps(compliance_checklist, indent=2)
         
-        return f"""Analyze this contract for legal compliance issues.
-
-COMPLIANCE CHECKLIST (JSON format):
-{checklist_str}
-
-CONTRACT TEXT TO ANALYZE:
+        return f"""CONTRACT TEXT:
 {contract_text}
 
-Instructions:
-1. Identify clauses that violate the requirements in the checklist
-2. Find missing required clauses or provisions
-3. Assess severity of each issue (high/medium/low)
-4. Provide specific recommendations for compliance
+COMPLIANCE REQUIREMENTS:
+{checklist_str}
 
-Return your analysis as a JSON object only:"""
+Analyze this contract for compliance issues. Look for missing clauses and problematic sections.
+
+Return your analysis as JSON with three keys:
+- summary: your brief assessment
+- flagged_clauses: array of problematic sections (each with clause_text, issue, severity)
+- compliance_issues: array of violations (each with law, missing_requirements, recommendations)"""
     
     @staticmethod
     def build_metadata_extraction_prompt(contract_text: str) -> str:

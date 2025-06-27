@@ -20,10 +20,10 @@ class WatsonXConfig:
     """Configuration for WatsonX AI client."""
     api_key: str
     project_id: str
-    base_url: str = "https://us-south.ml.cloud.ibm.com/ml/v1/text/generation"
+    base_url: str = "https://us-south.ml.cloud.ibm.com/ml/v1/text/generation?version=2023-05-29"
     model_id: str = ModelType.GRANITE_13B.value
     temperature: float = 0.1
-    max_tokens: int = 2048
+    max_tokens: int = 8191  # Maximum allowed by IBM WatsonX
     top_p: float = 0.95
     timeout: int = 60
 
