@@ -1,0 +1,258 @@
+# LEGAL GUARD REGTECH - FRONTEND DEVELOPMENT INSTRUCTIONS
+
+## PROJECT OVERVIEW
+Building the frontend for Legal Guard RegTech, a comprehensive legal compliance and contract analysis platform. This system helps businesses analyze contracts for regulatory compliance across multiple jurisdictions (Malaysia, Singapore, EU, US, etc.).
+
+## TECHNOLOGY STACK RECOMMENDATIONS
+- **Framework**: React 18+ with TypeScript
+- **Styling**: Tailwind CSS + Shadcn/ui components
+- **State Management**: Zustand or React Query for API state
+- **Routing**: React Router DOM
+- **File Upload**: React Dropzone
+- **Charts/Visualizations**: Recharts or Chart.js
+- **Icons**: Lucide React
+- **Build Tool**: Vite
+
+## BACKEND API ENDPOINTS (To Be Implemented)
+The backend will expose these REST API endpoints:
+
+### Contract Analysis
+- `POST /api/contract/analyze` - Analyze single contract
+- `POST /api/contract/bulk-analyze` - Analyze multiple contracts
+- `GET /api/contract/history` - Get analysis history
+- `GET /api/contract/templates` - Get contract templates
+
+### Regulatory Information
+- `GET /api/regulatory/frameworks` - Get all regulatory frameworks
+- `GET /api/regulatory/jurisdiction/{code}` - Get jurisdiction details
+- `GET /api/regulatory/search?term={query}` - Search regulations
+
+### Compliance
+- `GET /api/compliance/checklist` - Get compliance checklist
+- `GET /api/compliance/risk-score` - Calculate risk scores
+- `GET /api/compliance/alerts` - Get regulatory alerts
+
+## KEY FEATURES TO IMPLEMENT
+
+### 1. DASHBOARD (Landing Page)
+**Route**: `/`
+**Components Needed**:
+- Header with navigation
+- Hero section with value proposition
+- Quick stats cards (contracts analyzed, compliance rate, etc.)
+- Recent activity feed
+- Quick action buttons (Upload Contract, View Reports)
+
+### 2. CONTRACT UPLOAD & ANALYSIS
+**Route**: `/analyze`
+**Components Needed**:
+- Drag & drop file upload area (supports PDF, DOCX, TXT)
+- Jurisdiction selector dropdown (MY, SG, EU, US, UK, Global)
+- Contract type selector (Employment, NDA, Service Agreement, Data Processing, etc.)
+- Analysis progress indicator
+- Real-time analysis status updates
+
+**File Upload Flow**:
+1. User drags/selects contract file
+2. User selects jurisdiction and contract type
+3. File gets uploaded and processed
+4. Analysis starts with progress indicator
+5. Results displayed when complete
+
+### 3. ANALYSIS RESULTS PAGE
+**Route**: `/analysis/{analysisId}`
+**Components Needed**:
+- Contract summary card
+- Compliance risk score (with color-coded severity)
+- Detailed findings section with:
+  - Compliance violations (High/Medium/Low risk)
+  - Missing clauses
+  - Recommendations
+  - Regulatory references
+- Interactive risk meter/gauge
+- Export options (PDF report, CSV)
+- Action items checklist
+
+### 4. BULK ANALYSIS
+**Route**: `/bulk-analyze`
+**Components Needed**:
+- Multiple file upload interface
+- Batch processing queue
+- Progress tracking for each file
+- Summary results table
+- Bulk export functionality
+
+### 5. COMPLIANCE DASHBOARD
+**Route**: `/compliance`
+**Components Needed**:
+- Jurisdiction overview cards
+- Compliance trends chart
+- Recent regulatory updates
+- Risk distribution pie chart
+- Compliance checklist with status indicators
+
+### 6. REGULATORY LIBRARY
+**Route**: `/regulations`
+**Components Needed**:
+- Search bar for regulations
+- Filter by jurisdiction, type, industry
+- Regulation cards with:
+  - Law name and jurisdiction
+  - Key provisions summary
+  - Penalty information
+  - Recent updates
+- Detailed regulation view modal
+
+### 7. REPORTS & ANALYTICS
+**Route**: `/reports`
+**Components Needed**:
+- Date range selector
+- Compliance metrics charts
+- Contract analysis history table
+- Export/download options
+- Risk trend analysis
+
+### 8. SETTINGS & CONFIGURATION
+**Route**: `/settings`
+**Components Needed**:
+- Default jurisdiction settings
+- Notification preferences
+- API key management
+- User profile management
+
+## DESIGN REQUIREMENTS
+
+### Color Scheme
+- **Primary**: Professional blue (#1e40af)
+- **Success**: Green (#059669)
+- **Warning**: Amber (#d97706)
+- **Danger**: Red (#dc2626)
+- **Neutral**: Gray scales for text and backgrounds
+
+### Typography
+- Headings: Inter or Poppins (bold, semi-bold)
+- Body text: Inter (regular, medium)
+- Code/legal text: JetBrains Mono
+
+### Layout Principles
+- Clean, professional interface
+- Responsive design (mobile-first)
+- Clear visual hierarchy
+- Consistent spacing (use Tailwind spacing scale)
+- Accessible contrast ratios
+
+## DATA STRUCTURES TO HANDLE
+
+### Contract Analysis Response
+```typescript
+interface ContractAnalysisResponse {
+  analysisId: string;
+  contractSummary: {
+    title: string;
+    type: string;
+    jurisdiction: string;
+    wordCount: number;
+    uploadDate: string;
+  };
+  riskScore: {
+    overall: number; // 0-100
+    dataProtection: number;
+    employment: number;
+    contract: number;
+    informationSecurity: number;
+  };
+  findings: {
+    violations: ComplianceViolation[];
+    recommendations: string[];
+    missingClauses: string[];
+  };
+  regulatoryAlerts: RegulatoryAlert[];
+}
+```
+
+### Compliance Violation
+```typescript
+interface ComplianceViolation {
+  id: string;
+  severity: 'high' | 'medium' | 'low';
+  law: string;
+  provision: string;
+  description: string;
+  recommendation: string;
+  penaltyRisk: string;
+}
+```
+
+### Regulatory Framework
+```typescript
+interface RegulatoryFramework {
+  code: string;
+  name: string;
+  jurisdiction: string;
+  type: string;
+  applicableContracts: string[];
+  keyProvisions: Record<string, string>;
+  penalties: Record<string, string>;
+  recentUpdates: string[];
+}
+```
+
+## COMPONENT STRUCTURE SUGGESTION
+
+```
+src/
+├── components/
+│   ├── ui/              # Reusable UI components
+│   ├── layout/          # Layout components (Header, Sidebar, Footer)
+│   ├── contract/        # Contract-specific components
+│   ├── compliance/      # Compliance-related components
+│   ├── charts/          # Data visualization components
+│   └── forms/           # Form components
+├── pages/               # Page components
+├── hooks/               # Custom React hooks
+├── services/            # API service functions
+├── types/               # TypeScript type definitions
+├── utils/               # Utility functions
+└── stores/              # State management
+```
+
+## PRIORITY ORDER
+1. **Phase 1**: Basic layout, navigation, and contract upload functionality
+2. **Phase 2**: Analysis results display and compliance dashboard
+3. **Phase 3**: Regulatory library and search functionality
+4. **Phase 4**: Reports, analytics, and advanced features
+5. **Phase 5**: Settings, user management, and optimization
+
+## API INTEGRATION NOTES
+- All API calls should include proper error handling
+- Implement loading states for all async operations
+- Use React Query for caching and synchronization
+- Set up proper TypeScript types for all API responses
+- Include proper CORS configuration
+- Implement file upload progress tracking
+
+## TESTING REQUIREMENTS
+- Unit tests for utility functions
+- Component testing with React Testing Library
+- Integration tests for critical user flows
+- End-to-end tests for complete workflows
+
+## DEPLOYMENT CONSIDERATIONS
+- Build for production with environment variables
+- Optimize bundle size
+- Implement proper error boundaries
+- Set up proper SEO meta tags
+- Ensure mobile responsiveness
+
+## GETTING STARTED
+1. Initialize React + TypeScript project with Vite
+2. Set up Tailwind CSS and Shadcn/ui
+3. Create basic routing structure
+4. Implement layout components
+5. Start with the contract upload feature
+6. Connect to backend APIs as they become available
+
+## CONTACT
+If you have questions about the backend structure or API endpoints, coordinate with the backend developer for the latest specifications and test data.
+
+Good luck with the development! Focus on creating a clean, professional interface that makes complex legal compliance accessible to business users.
