@@ -6,155 +6,55 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 class LawLoader:
-    def __init__(self, laws_directory: str = "backend/data/laws"):
-        self.laws_directory = Path(laws_directory)
+    def __init__(self, mappings_file: str = "data/general/mappings.json"):
+        self.mappings_file = Path(mappings_file)
         self._law_cache = {}
-        self._jurisdiction_mapping = {
-            "MY": ["PDPA", "EMPLOYMENT_ACT_MY", "CONTRACT_ACT_MY", "COMPANIES_ACT_MY"],
-            "SG": ["PDPA_SG", "EMPLOYMENT_ACT_SG", "CONTRACT_ACT_SG"],
-            "EU": ["GDPR", "DIGITAL_SERVICES_ACT", "AI_ACT"],
-            "US": ["CCPA", "CPRA", "FEDERAL_TRADE_COMMISSION_ACT"],
-            "UK": ["UK_GDPR", "DATA_PROTECTION_ACT", "EMPLOYMENT_RIGHTS_ACT"],
-            "GLOBAL": ["UN_GLOBAL_COMPACT", "ISO_27001", "SOC2"]
-        }
-        self._initialize_law_database()
+        self._jurisdiction_mapping = {}
+        self._contract_types = {}
+        self._risk_levels = {}
+        self._metadata = {}
+        self._initialize_from_mappings()
     
-    def _initialize_law_database(self):
-        """Initialize the law database with regulatory frameworks"""
-        self._law_cache = {
-            # Malaysia Laws
-            "PDPA": {
-                "name": "Personal Data Protection Act 2010 (Malaysia)",
-                "jurisdiction": "MY",
-                "type": "data_protection",
-                "applicable_contracts": ["data_processing", "employment", "nda", "service_agreement"],
-                "key_provisions": {
-                    "consent": "Section 6 - Processing must be based on valid consent",
-                    "purpose_limitation": "Section 6 - Data must be processed for specified purposes only",
-                    "data_retention": "Section 9 - Data must not be kept longer than necessary",
-                    "cross_border": "Section 129 - Restrictions on transfer outside Malaysia",
-                    "security": "Section 7 - Adequate security measures required",
-                    "breach_notification": "Section 15A - Mandatory breach notification"
-                },
-                "penalties": {
-                    "individual": "Up to RM500,000 fine or 3 years imprisonment",
-                    "corporate": "Up to RM500,000 fine"
-                },
-                "recent_updates": [
-                    "2022 Amendment - Enhanced cross-border transfer restrictions",
-                    "2023 Guidelines - AI and automated decision-making"
-                ]
-            },
+    def _initialize_from_mappings(self):
+        """Initialize the law database from mappings.json file"""
+        try:
+            if not self.mappings_file.exists():
+                logger.error(f"Mappings file not found: {self.mappings_file}")
+                self._initialize_fallback_data()
+                return
             
-            "EMPLOYMENT_ACT_MY": {
-                "name": "Employment Act 1955 (Malaysia)",
-                "jurisdiction": "MY", 
-                "type": "employment",
-                "applicable_contracts": ["employment"],
-                "key_provisions": {
-                    "working_hours": "Section 60A - Maximum 48 hours per week",
-                    "overtime": "Section 60A - Minimum 1.5x rate for overtime",
-                    "annual_leave": "Section 60E - Minimum 8 days annual leave",
-                    "termination": "First Schedule - Notice periods based on service length",
-                    "maternity": "Section 37 - 98 days maternity leave",
-                    "minimum_wage": "Minimum wage as per government orders"
-                },
-                "penalties": {
-                    "individual": "Fine up to RM10,000",
-                    "corporate": "Compensation and statutory penalties"
-                }
-            },
+            with open(self.mappings_file, 'r', encoding='utf-8') as f:
+                mappings_data = json.load(f)
             
-            # European Union Laws
-            "GDPR": {
-                "name": "General Data Protection Regulation (EU)",
-                "jurisdiction": "EU",
-                "type": "data_protection",
-                "applicable_contracts": ["data_processing", "employment", "nda", "service_agreement"],
-                "key_provisions": {
-                    "lawful_basis": "Article 6 - Six lawful bases for processing",
-                    "consent": "Article 7 - Conditions for consent",
-                    "data_subject_rights": "Articles 15-22 - Individual rights",
-                    "international_transfers": "Chapter V - Transfers to third countries",
-                    "data_protection_officer": "Articles 37-39 - DPO requirements",
-                    "privacy_by_design": "Article 25 - Data protection by design and default",
-                    "breach_notification": "Articles 33-34 - Breach notification requirements"
-                },
-                "penalties": {
-                    "administrative_fines": "Up to €20 million or 4% of annual global turnover",
-                    "corrective_measures": "Processing bans, data erasure orders"
-                },
-                "recent_updates": [
-                    "2024 Guidelines on AI and automated decision-making",
-                    "2023 Adequacy decisions updates",
-                    "2024 Guidelines on consent in digital services"
-                ]
-            },
+            # Load data from mappings.json
+            self._jurisdiction_mapping = mappings_data.get("jurisdiction_mapping", {})
+            self._law_cache = mappings_data.get("laws", {})
+            self._contract_types = mappings_data.get("contract_types", {})
+            self._risk_levels = mappings_data.get("risk_levels", {})
+            self._metadata = mappings_data.get("metadata", {})
             
-            # United States Laws
-            "CCPA": {
-                "name": "California Consumer Privacy Act",
-                "jurisdiction": "US",
-                "type": "data_protection",
-                "applicable_contracts": ["data_processing", "service_agreement", "nda"],
-                "key_provisions": {
-                    "consumer_rights": "Right to know, delete, opt-out, non-discrimination",
-                    "business_obligations": "Privacy policy requirements and consumer request handling",
-                    "third_party_sharing": "Disclosure requirements for data sharing",
-                    "sensitive_information": "Additional protections for sensitive personal information"
-                },
-                "penalties": {
-                    "civil_penalties": "Up to $7,500 per violation",
-                    "private_right": "$100-$750 per consumer per incident"
-                }
-            },
+            logger.info(f"Loaded {len(self._law_cache)} laws from {self.mappings_file}")
             
-            # Singapore Laws
-            "PDPA_SG": {
-                "name": "Personal Data Protection Act 2012 (Singapore)",
-                "jurisdiction": "SG",
-                "type": "data_protection", 
-                "applicable_contracts": ["data_processing", "employment", "nda", "service_agreement"],
-                "key_provisions": {
-                    "consent": "Section 13 - Consent obligations",
-                    "purpose_limitation": "Section 12 - Purpose limitation obligation",
-                    "notification": "Section 20 - Notification of data breaches",
-                    "transfer_limitation": "Section 26 - Transfer limitation obligation"
-                },
-                "penalties": {
-                    "financial": "Up to S$1 million fine"
-                }
-            },
-            
-            # Contract Law Frameworks
-            "CONTRACT_ACT_MY": {
-                "name": "Contracts Act 1950 (Malaysia)",
-                "jurisdiction": "MY",
-                "type": "contract",
-                "applicable_contracts": ["all"],
-                "key_provisions": {
-                    "formation": "Sections 2-9 - Contract formation requirements",
-                    "consideration": "Sections 26-30 - Consideration requirements", 
-                    "capacity": "Sections 11-12 - Capacity to contract",
-                    "free_consent": "Sections 13-22 - Free consent requirements",
-                    "void_agreements": "Sections 23-30 - Void agreements",
-                    "performance": "Sections 37-67 - Performance obligations"
-                }
-            },
-            
-            # Industry Standards
-            "ISO_27001": {
-                "name": "ISO/IEC 27001 Information Security Management",
-                "jurisdiction": "GLOBAL",
-                "type": "information_security",
-                "applicable_contracts": ["data_processing", "service_agreement", "nda"],
-                "key_provisions": {
-                    "isms": "Information Security Management System requirements",
-                    "risk_assessment": "Risk assessment and treatment processes",
-                    "controls": "Annex A security controls framework",
-                    "continuous_improvement": "Plan-Do-Check-Act cycle"
-                }
-            }
+        except Exception as e:
+            logger.error(f"Failed to load mappings from {self.mappings_file}: {str(e)}")
+            self._initialize_fallback_data()
+    
+    def _initialize_fallback_data(self):
+        """Initialize minimal fallback data if mappings.json cannot be loaded"""
+        logger.warning("Using fallback data - some features may be limited")
+        self._jurisdiction_mapping = {
+            "MY": ["PDPA", "EMPLOYMENT_ACT_MY", "CONTRACT_ACT_MY"],
+            "SG": ["PDPA_SG"],
+            "EU": ["GDPR"],
+            "US": ["CCPA"],
+            "GLOBAL": ["ISO_27001"]
+        }
+        self._law_cache = {}
+        self._contract_types = {}
+        self._risk_levels = {
+            "high": {"description": "High risk"},
+            "medium": {"description": "Medium risk"},
+            "low": {"description": "Low risk"}
         }
     
     async def get_laws_for_jurisdiction(self, jurisdiction: str) -> Dict:
@@ -215,31 +115,27 @@ class LawLoader:
         return checklist
     
     def _is_provision_mandatory(self, law_code: str, provision_key: str) -> bool:
-        mandatory_provisions = {
-            "PDPA": ["consent", "purpose_limitation", "cross_border", "breach_notification"],
-            "GDPR": ["lawful_basis", "data_subject_rights", "international_transfers", "breach_notification"],
-            "EMPLOYMENT_ACT_MY": ["working_hours", "overtime", "minimum_wage", "termination"],
-            "CCPA": ["consumer_rights", "business_obligations"],
-            "CONTRACT_ACT_MY": ["formation", "consideration", "capacity", "free_consent"]
-        }
-        
-        return provision_key in mandatory_provisions.get(law_code, [])
+        """Check if a provision is mandatory based on data from mappings.json"""
+        law_data = self._law_cache.get(law_code, {})
+        mandatory_provisions = law_data.get("mandatory_provisions", [])
+        return provision_key in mandatory_provisions
     
     def _get_penalty_risk(self, law_data: Dict, provision_key: str) -> str:
-        penalties = law_data.get("penalties", {})
+        """Get penalty risk level from law data or use fallback logic"""
+        # First check if penalty_risk is directly specified in the law data
+        if "penalty_risk" in law_data:
+            return law_data["penalty_risk"]
         
-        # High risk laws with significant financial penalties
-        high_risk_laws = ["GDPR", "PDPA", "CCPA"]
-        if any(law in str(law_data.get("name", "")) for law in high_risk_laws):
+        # Fallback to type-based risk assessment
+        law_type = law_data.get("type", "")
+        if law_type == "data_protection":
             return "high"
-        
-        # Employment laws typically have medium risk
-        if law_data.get("type") == "employment":
+        elif law_type == "employment":
             return "medium"
-        
-        # Contract law violations typically lower financial risk
-        if law_data.get("type") == "contract":
+        elif law_type == "contract":
             return "low"
+        elif law_type == "information_security":
+            return "medium"
         
         return "medium"
     
@@ -303,10 +199,12 @@ class LawLoader:
             "law_types": {},
             "key_focus_areas": [],
             "compliance_complexity": "medium",
-            "recent_changes": []
+            "recent_changes": [],
+            "high_risk_laws": [],
+            "applicable_contract_types": set()
         }
         
-        # Categorize laws by type
+        # Categorize laws by type and gather additional information
         for law_code, law_data in laws.items():
             law_type = law_data.get("type", "other")
             if law_type not in summary["law_types"]:
@@ -316,19 +214,70 @@ class LawLoader:
             # Collect recent updates
             recent_updates = law_data.get("recent_updates", [])
             summary["recent_changes"].extend(recent_updates)
+            
+            # Track high-risk laws
+            penalty_risk = law_data.get("penalty_risk", "medium")
+            if penalty_risk == "high":
+                summary["high_risk_laws"].append({
+                    "code": law_code,
+                    "name": law_data.get("name", law_code),
+                    "type": law_type
+                })
+            
+            # Collect applicable contract types
+            applicable_contracts = law_data.get("applicable_contracts", [])
+            summary["applicable_contract_types"].update(applicable_contracts)
+        
+        # Convert set to list for JSON serialization
+        summary["applicable_contract_types"] = list(summary["applicable_contract_types"])
         
         # Determine focus areas based on law types
-        if "data_protection" in summary["law_types"]:
-            summary["key_focus_areas"].append("Data Protection & Privacy")
-        if "employment" in summary["law_types"]:
-            summary["key_focus_areas"].append("Employment Rights")
-        if "contract" in summary["law_types"]:
-            summary["key_focus_areas"].append("Contract Law")
+        focus_area_mapping = {
+            "data_protection": "Data Protection & Privacy",
+            "employment": "Employment Rights",
+            "contract": "Contract Law",
+            "information_security": "Information Security",
+            "financial": "Financial Compliance"
+        }
         
-        # Assess complexity based on number and types of laws
-        if len(laws) > 5 or "data_protection" in summary["law_types"]:
+        for law_type in summary["law_types"]:
+            if law_type in focus_area_mapping:
+                summary["key_focus_areas"].append(focus_area_mapping[law_type])
+        
+        # Assess complexity based on number, types, and risk levels of laws
+        high_risk_count = len(summary["high_risk_laws"])
+        total_laws = len(laws)
+        
+        if high_risk_count >= 2 or total_laws > 5:
             summary["compliance_complexity"] = "high"
-        elif len(laws) < 3:
+        elif total_laws < 3 and high_risk_count == 0:
             summary["compliance_complexity"] = "low"
+        else:
+            summary["compliance_complexity"] = "medium"
         
         return summary
+    
+    async def get_contract_types(self) -> Dict:
+        """Get all available contract types"""
+        return self._contract_types
+    
+    async def get_risk_levels(self) -> Dict:
+        """Get risk level definitions"""
+        return self._risk_levels
+    
+    async def get_system_metadata(self) -> Dict:
+        """Get system metadata"""
+        return self._metadata
+    
+    async def get_contract_type_info(self, contract_type: str) -> Optional[Dict]:
+        """Get information about a specific contract type"""
+        return self._contract_types.get(contract_type)
+    
+    async def reload_mappings(self) -> bool:
+        """Reload mappings from file - useful for updates without restart"""
+        try:
+            self._initialize_from_mappings()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to reload mappings: {str(e)}")
+            return False
