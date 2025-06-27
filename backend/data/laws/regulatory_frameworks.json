@@ -1,0 +1,123 @@
+{
+    "PDPA": {
+        "name": "Personal Data Protection Act 2010 (Malaysia)",
+        "jurisdiction": "MY",
+        "type": "data_protection",
+        "applicable_contracts": ["data_processing", "employment", "nda", "service_agreement"],
+        "key_provisions": {
+            "consent": "Section 6 - Processing must be based on valid consent",
+            "purpose_limitation": "Section 6 - Data must be processed for specified purposes only",
+            "data_retention": "Section 9 - Data must not be kept longer than necessary",
+            "cross_border": "Section 129 - Restrictions on transfer outside Malaysia",
+            "security": "Section 7 - Adequate security measures required",
+            "breach_notification": "Section 15A - Mandatory breach notification"
+        },
+        "penalties": {
+            "individual": "Up to RM500,000 fine or 3 years imprisonment",
+            "corporate": "Up to RM500,000 fine"
+        },
+        "recent_updates": [
+            "2022 Amendment - Enhanced cross-border transfer restrictions",
+            "2023 Guidelines - AI and automated decision-making"
+        ]
+    },
+    "EMPLOYMENT_ACT_MY": {
+        "name": "Employment Act 1955 (Malaysia)",
+        "jurisdiction": "MY", 
+        "type": "employment",
+        "applicable_contracts": ["employment"],
+        "key_provisions": {
+            "working_hours": "Section 60A - Maximum 48 hours per week",
+            "overtime": "Section 60A - Minimum 1.5x rate for overtime",
+            "annual_leave": "Section 60E - Minimum 8 days annual leave",
+            "termination": "First Schedule - Notice periods based on service length",
+            "maternity": "Section 37 - 98 days maternity leave",
+            "minimum_wage": "Minimum wage as per government orders"
+        },
+        "penalties": {
+            "individual": "Fine up to RM10,000",
+            "corporate": "Compensation and statutory penalties"
+        }
+    },
+    "GDPR": {
+        "name": "General Data Protection Regulation (EU)",
+        "jurisdiction": "EU",
+        "type": "data_protection",
+        "applicable_contracts": ["data_processing", "employment", "nda", "service_agreement"],
+        "key_provisions": {
+            "lawful_basis": "Article 6 - Six lawful bases for processing",
+            "consent": "Article 7 - Conditions for consent",
+            "data_subject_rights": "Articles 15-22 - Individual rights",
+            "international_transfers": "Chapter V - Transfers to third countries",
+            "data_protection_officer": "Articles 37-39 - DPO requirements",
+            "privacy_by_design": "Article 25 - Data protection by design and default",
+            "breach_notification": "Articles 33-34 - Breach notification requirements"
+        },
+        "penalties": {
+            "administrative_fines": "Up to €20 million or 4% of annual global turnover",
+            "corrective_measures": "Processing bans, data erasure orders"
+        },
+        "recent_updates": [
+            "2024 Guidelines on AI and automated decision-making",
+            "2023 Adequacy decisions updates",
+            "2024 Guidelines on consent in digital services"
+        ]
+    },
+    "CCPA": {
+        "name": "California Consumer Privacy Act",
+        "jurisdiction": "US",
+        "type": "data_protection",
+        "applicable_contracts": ["data_processing", "service_agreement", "nda"],
+        "key_provisions": {
+            "consumer_rights": "Right to know, delete, opt-out, non-discrimination",
+            "business_obligations": "Privacy policy requirements and consumer request handling",
+            "third_party_sharing": "Disclosure requirements for data sharing",
+            "sensitive_information": "Additional protections for sensitive personal information"
+        },
+        "penalties": {
+            "civil_penalties": "Up to $7,500 per violation",
+            "private_right": "$100-$750 per consumer per incident"
+        }
+    },
+    "PDPA_SG": {
+        "name": "Personal Data Protection Act 2012 (Singapore)",
+        "jurisdiction": "SG",
+        "type": "data_protection", 
+        "applicable_contracts": ["data_processing", "employment", "nda", "service_agreement"],
+        "key_provisions": {
+            "consent": "Section 13 - Consent obligations",
+            "purpose_limitation": "Section 12 - Purpose limitation obligation",
+            "notification": "Section 20 - Notification of data breaches",
+            "transfer_limitation": "Section 26 - Transfer limitation obligation"
+        },
+        "penalties": {
+            "financial": "Up to S$1 million fine"
+        }
+    },
+    "CONTRACT_ACT_MY": {
+        "name": "Contracts Act 1950 (Malaysia)",
+        "jurisdiction": "MY",
+        "type": "contract",
+        "applicable_contracts": ["all"],
+        "key_provisions": {
+            "formation": "Sections 2-9 - Contract formation requirements",
+            "consideration": "Sections 26-30 - Consideration requirements", 
+            "capacity": "Sections 11-12 - Capacity to contract",
+            "free_consent": "Sections 13-22 - Free consent requirements",
+            "void_agreements": "Sections 23-30 - Void agreements",
+            "performance": "Sections 37-67 - Performance obligations"
+        }
+    },
+    "ISO_27001": {
+        "name": "ISO/IEC 27001 Information Security Management",
+        "jurisdiction": "GLOBAL",
+        "type": "information_security",
+        "applicable_contracts": ["data_processing", "service_agreement", "nda"],
+        "key_provisions": {
+            "isms": "Information Security Management System requirements",
+            "risk_assessment": "Risk assessment and treatment processes",
+            "controls": "Annex A security controls framework",
+            "continuous_improvement": "Plan-Do-Check-Act cycle"
+        }
+    }
+}
