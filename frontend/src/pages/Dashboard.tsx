@@ -1,15 +1,15 @@
-import { FileText, Gauge, AlertCircle, Upload, FileSearch, ChevronRight } from 'lucide-react';
+import { FileText, Gauge, AlertCircle, BookText, ChevronRight } from 'lucide-react';
 import Header from '../components/layout/Header';
 
 export default function Dashboard() {
-    // Mock data for stats (change to backend data)
+    // Mock data for stats
     const stats = [
         { title: "Contracts Analyzed", value: "142", icon: <FileText className="w-5 h-5" />, trend: "up", change: "12%" },
         { title: "Compliance Rate", value: "87%", icon: <Gauge className="w-5 h-5" />, trend: "up", change: "5%" },
         { title: "Alerts Detected", value: "23", icon: <AlertCircle className="w-5 h-5" />, trend: "down", change: "3%" }
     ];
 
-    // Mock data for recent activities (change to backend data)
+    // Mock data for recent activities
     const recentActivities = [
         { id: 1, contract: "Employment Agreement", time: "10 mins ago", risk: "medium" },
         { id: 2, contract: "NDA with TechCorp", time: "2 hours ago", risk: "low" },
@@ -36,7 +36,7 @@ export default function Dashboard() {
                 </div>
             </section>
 
-            {/* Stats cards section - need to add in backend data */}
+            {/* Stats cards section */}
             <section className="py-20 px-4 sm:px-6 lg:px-8">
                 <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {stats.map((stat, index) => (
@@ -62,15 +62,15 @@ export default function Dashboard() {
                 </div>
             </section>
 
-            {/* Recent activity section - add in backend data - want to view all activities or no? */}
+            {/* Recent activity section */}
             <section className="py-16 px-4 sm:px-6 lg:px-8">
                 <div className="max-w-6xl mx-auto grid lg:grid-cols-3 gap-10">
                     <div className="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl">
                         <div className="flex justify-between items-center px-6 py-5 border-b border-slate-700/50">
                             <h2 className="text-xl font-semibold text-blue-300">Recent Activity</h2>
-                            <a href="#" className="text-blue-300 text-sm hover:underline flex items-center gap-1 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                            {/* <a href="#" className="text-blue-300 text-sm hover:underline flex items-center gap-1 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800">
                                 View all <ChevronRight className="w-4 h-4" />
-                            </a>
+                            </a> */}
                         </div>
                         <div className="divide-y divide-slate-700/50">
                             {recentActivities.map((activity) => (
@@ -92,7 +92,7 @@ export default function Dashboard() {
                         </div>
                     </div>
 
-                    {/* Quick Actions - link to analyze and reports page */}
+                    {/* Quick Actions - link to compliance and regulations */}
                     <aside className="lg:col-span-1 bg-slate-800 border border-slate-700 rounded-lg p-6 shadow-2xl sticky top-24 h-fit">
                         <h3 className="text-xl font-semibold text-blue-300 mb-5">Quick Actions</h3>
                         <div className="space-y-4">
@@ -101,11 +101,11 @@ export default function Dashboard() {
                             className="flex items-center gap-4 p-4 border border-slate-700 rounded-md hover:bg-slate-700/20 group transform hover:translate-x-1 hover:shadow-md transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800"
                             >
                             <div className="p-3 bg-blue-700/50 text-blue-200 rounded-md group-hover:bg-blue-700/70 flex-shrink-0 shadow-sm">
-                                <Upload className="w-5 h-5" />
+                                <Gauge className="w-5 h-5" />
                             </div>
                             <div className="flex-grow">
-                                <h4 className="text-base font-medium text-white leading-snug">Upload Contract</h4>
-                                <p className="text-xs text-gray-300 mt-0.5 leading-snug">Analyze a single document</p>
+                                <h4 className="text-base font-medium text-white leading-snug">Compliance Dashboard</h4>
+                                <p className="text-xs text-gray-300 mt-0.5 leading-snug">Access Compliance Dashboard</p>
                             </div>
                             <ChevronRight className="ml-auto w-5 h-5 text-blue-400 group-hover:translate-x-1 transition-transform duration-200" />
                             </a>
@@ -114,11 +114,11 @@ export default function Dashboard() {
                             className="flex items-center gap-4 p-4 border border-slate-700 rounded-md hover:bg-slate-700/20 group transform hover:translate-x-1 hover:shadow-md transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800"
                             >
                             <div className="p-3 bg-blue-600/50 text-blue-100 rounded-md group-hover:bg-blue-600/70 flex-shrink-0 shadow-sm">
-                                <FileSearch className="w-5 h-5" />
+                                <BookText className="w-5 h-5" />
                             </div>
                             <div className="flex-grow">
-                                <h4 className="text-base font-medium text-white leading-snug">View Reports</h4>
-                                <p className="text-xs text-gray-300 mt-0.5 leading-snug">Access compliance reports</p>
+                                <h4 className="text-base font-medium text-white leading-snug">Regulatory Library</h4>
+                                <p className="text-xs text-gray-300 mt-0.5 leading-snug">Access regulatory library</p>
                             </div>
                             <ChevronRight className="ml-auto w-5 h-5 text-blue-400 group-hover:translate-x-1 transition-transform duration-200" />
                             </a>
