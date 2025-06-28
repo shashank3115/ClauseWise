@@ -1,41 +1,101 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import { authService } from '../utils/auth';
+import type { RegisterData } from '../utils/auth';
 
 export default function Signup() {
     const navigate = useNavigate();
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<RegisterData>({
         firstName: '',
         lastName: '',
         email: '',
         password: '',
-        confirmPassword: '',
-        company: '',
-        agreeToTerms: false
+        company: ''
     });
     
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [errors, setErrors] = useState({});
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [isLoading, setIsLoading] = useState(false);
+    const [signupError, setSignupError] = useState('');
 
-    const handleInputChange = (e) => {
-        const { name, value, type, checked } = e.target;
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
-            [name]: type === 'checkbox' ? checked : value
+            [name]: value
         }));
+        
+        // Clear error when user starts typing
+        if (errors[name]) {
+            setErrors(prev => ({
+                ...prev,
+                [name]: ''
+            }));
+        }
+        setSignupError('');
     };
 
-    const handleSubmit = async (e) => {
+    const validateForm = () => {
+        const newErrors: { [key: string]: string } = {};
+
+        if (!formData.firstName.trim()) {
+            newErrors.firstName = 'First name is required';
+        }
+
+        if (!formData.lastName.trim()) {
+            newErrors.lastName = 'Last name is required';
+        }
+
+        if (!formData.email) {
+            newErrors.email = 'Email is required';
+        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+            newErrors.email = 'Please enter a valid email address';
+        }
+
+        if (!formData.company.trim()) {
+            newErrors.company = 'Company name is required';
+        }
+
+        if (!formData.password) {
+            newErrors.password = 'Password is required';
+        } else if (formData.password.length < 6) {
+            newErrors.password = 'Password must be at least 6 characters';
+        }
+
+        if (!confirmPassword) {
+            newErrors.confirmPassword = 'Please confirm your password';
+        } else if (formData.password !== confirmPassword) {
+            newErrors.confirmPassword = 'Passwords do not match';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
         
+        if (!validateForm()) {
+            return;
+        }
+
+        setIsLoading(true);
+        setSignupError('');
+
         try {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            navigate('/login');
+            const user = authService.register(formData);
+            
+            if (user) {
+                // Redirect to dashboard
+                navigate('/dashboard');
+            } else {
+                setSignupError('An account with this email already exists');
+            }
         } catch (error) {
-            console.error('Signup error:', error);
+            setSignupError('An error occurred during registration. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -60,6 +120,13 @@ export default function Signup() {
 
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div className="bg-white rounded-xl shadow-xl p-8 space-y-6">
+                        {signupError && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+                                <AlertCircle className="text-red-500 w-5 h-5 mr-2" />
+                                <span className="text-red-700 text-sm">{signupError}</span>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
@@ -72,9 +139,14 @@ export default function Signup() {
                                     required
                                     value={formData.firstName}
                                     onChange={handleInputChange}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                        errors.firstName ? 'border-red-300' : 'border-gray-300'
+                                    }`}
                                     placeholder="John"
                                 />
+                                {errors.firstName && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
+                                )}
                             </div>
                             <div>
                                 <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
@@ -87,9 +159,14 @@ export default function Signup() {
                                     required
                                     value={formData.lastName}
                                     onChange={handleInputChange}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                        errors.lastName ? 'border-red-300' : 'border-gray-300'
+                                    }`}
                                     placeholder="Doe"
                                 />
+                                {errors.lastName && (
+                                    <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
+                                )}
                             </div>
                         </div>
 
@@ -104,9 +181,14 @@ export default function Signup() {
                                 required
                                 value={formData.email}
                                 onChange={handleInputChange}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                    errors.email ? 'border-red-300' : 'border-gray-300'
+                                }`}
                                 placeholder="john.doe@company.com"
                             />
+                            {errors.email && (
+                                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                            )}
                         </div>
 
                         <div>
@@ -120,9 +202,14 @@ export default function Signup() {
                                 required
                                 value={formData.company}
                                 onChange={handleInputChange}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                    errors.company ? 'border-red-300' : 'border-gray-300'
+                                }`}
                                 placeholder="Your Company Ltd."
                             />
+                            {errors.company && (
+                                <p className="mt-1 text-sm text-red-600">{errors.company}</p>
+                            )}
                         </div>
 
                         <div>
@@ -137,7 +224,9 @@ export default function Signup() {
                                     required
                                     value={formData.password}
                                     onChange={handleInputChange}
-                                    className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                        errors.password ? 'border-red-300' : 'border-gray-300'
+                                    }`}
                                     placeholder="••••••••"
                                 />
                                 <button
@@ -148,6 +237,9 @@ export default function Signup() {
                                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                 </button>
                             </div>
+                            {errors.password && (
+                                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                            )}
                         </div>
 
                         <div>
@@ -160,9 +252,19 @@ export default function Signup() {
                                     name="confirmPassword"
                                     type={showConfirmPassword ? 'text' : 'password'}
                                     required
-                                    value={formData.confirmPassword}
-                                    onChange={handleInputChange}
-                                    className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    value={confirmPassword}
+                                    onChange={(e) => {
+                                        setConfirmPassword(e.target.value);
+                                        if (errors.confirmPassword) {
+                                            setErrors(prev => ({
+                                                ...prev,
+                                                confirmPassword: ''
+                                            }));
+                                        }
+                                    }}
+                                    className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                        errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
+                                    }`}
                                     placeholder="••••••••"
                                 />
                                 <button
@@ -173,58 +275,27 @@ export default function Signup() {
                                     {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                 </button>
                             </div>
-                        </div>
-
-                        <div className="flex items-start gap-3">
-                            <input
-                                id="agreeToTerms"
-                                name="agreeToTerms"
-                                type="checkbox"
-                                checked={formData.agreeToTerms}
-                                onChange={handleInputChange}
-                                className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                            <label htmlFor="agreeToTerms" className="text-sm text-gray-700">
-                                I agree to the{' '}
-                                <Link to="/terms" className="text-blue-600 hover:text-blue-800 font-medium">
-                                    Terms of Service
-                                </Link>{' '}
-                                and{' '}
-                                <Link to="/privacy" className="text-blue-600 hover:text-blue-800 font-medium">
-                                    Privacy Policy
-                                </Link>
-                            </label>
+                            {errors.confirmPassword && (
+                                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                            )}
                         </div>
 
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full bg-[#1e40af] text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full bg-[#1e40af] text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
-                            {isLoading ? (
-                                <>
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                    Creating account...
-                                </>
-                            ) : (
-                                <>
-                                    <CheckCircle className="w-5 h-5" />
-                                    Create Account
-                                </>
-                            )}
+                            {isLoading ? 'Creating account...' : 'Create account'}
                         </button>
-                    </div>
 
-                    <div className="text-center">
-                        <p className="text-gray-600">
-                            Already have an account?{' '}
-                            <Link
-                                to="/login"
-                                className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
-                            >
-                                Sign in here
-                            </Link>
-                        </p>
+                        <div className="text-center">
+                            <p className="text-sm text-gray-600">
+                                Already have an account?{' '}
+                                <Link to="/login" className="text-blue-600 hover:text-blue-800 font-medium">
+                                    Sign in
+                                </Link>
+                            </p>
+                        </div>
                     </div>
                 </form>
             </div>

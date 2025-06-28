@@ -9,9 +9,9 @@ export const getRegulationDetail = (lawId: string) => {
 };
 
 export const searchRegulations = (payload: {
-    keyword?: string;
+    search_term?: string;
     jurisdiction?: string;
-    type?: string;
+    regulation_type?: string;
     page?: number;
 }) => {
     return api.post('/regulations/search', payload);
