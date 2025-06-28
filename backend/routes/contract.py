@@ -340,7 +340,7 @@ async def extract_text_from_file(
             )
         
         # Extract text
-        extracted_text = text_extractor.extract_text(file_content, file.filename)
+        extracted_text = await text_extractor.extract_text(file_content, file.filename)
         
         if not extracted_text.strip():
             raise HTTPException(
