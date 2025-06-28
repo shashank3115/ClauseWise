@@ -1,197 +1,111 @@
 {
   "jurisdiction_mapping": {
-    "MY": ["PDPA", "EMPLOYMENT_ACT_MY", "CONTRACT_ACT_MY", "COMPANIES_ACT_MY"],
-    "SG": ["PDPA_SG", "EMPLOYMENT_ACT_SG", "CONTRACT_ACT_SG"],
-    "EU": ["GDPR", "DIGITAL_SERVICES_ACT", "AI_ACT"],
-    "US": ["CCPA", "CPRA", "FEDERAL_TRADE_COMMISSION_ACT"],
-    "UK": ["UK_GDPR", "DATA_PROTECTION_ACT", "EMPLOYMENT_RIGHTS_ACT"],
-    "GLOBAL": ["UN_GLOBAL_COMPACT", "ISO_27001", "SOC2"]
+    "MY": [
+      "PDPA_MY",
+      "EMPLOYMENT_ACT_MY",
+      "CONTRACT_ACT_MY",
+      "COMPANIES_ACT_MY"
+    ],
+    "SG": [
+      "PDPA_SG",
+      "EMPLOYMENT_ACT_SG",
+      "CONTRACT_ACT_SG"
+    ],
+    "EU": [
+      "GDPR_EU",
+      "DIGITAL_SERVICES_ACT",
+      "AI_ACT"
+    ],
+    "US": [
+      "CCPA_US",
+      "CPRA",
+      "FEDERAL_TRADE_COMMISSION_ACT"
+    ],
+    "UK": [
+      "UK_GDPR",
+      "DATA_PROTECTION_ACT",
+      "EMPLOYMENT_RIGHTS_ACT"
+    ],
+    "GLOBAL": [
+      "UN_GLOBAL_COMPACT",
+      "ISO_27001",
+      "SOC2"
+    ]
   },
   "laws": {
-    "PDPA": {
+    "PDPA_MY": {
       "name": "Personal Data Protection Act 2010 (Malaysia)",
-      "jurisdiction": "MY",
-      "type": "data_protection",
-      "applicable_contracts": ["data_processing", "employment", "nda", "service_agreement"],
-      "key_provisions": {
-        "consent": "Section 6 - Processing must be based on valid consent",
-        "purpose_limitation": "Section 6 - Data must be processed for specified purposes only",
-        "data_retention": "Section 9 - Data must not be kept longer than necessary",
-        "cross_border": "Section 129 - Restrictions on transfer outside Malaysia",
-        "security": "Section 7 - Adequate security measures required",
-        "breach_notification": "Section 15A - Mandatory breach notification"
-      },
-      "penalties": {
-        "individual": "Up to RM500,000 fine or 3 years imprisonment",
-        "corporate": "Up to RM500,000 fine"
-      },
-      "recent_updates": [
-        "2022 Amendment - Enhanced cross-border transfer restrictions",
-        "2023 Guidelines - AI and automated decision-making"
-      ],
-      "mandatory_provisions": ["consent", "purpose_limitation", "cross_border", "breach_notification"],
-      "penalty_risk": "high"
+      "type": "data_protection"
     },
     "EMPLOYMENT_ACT_MY": {
       "name": "Employment Act 1955 (Malaysia)",
-      "jurisdiction": "MY",
-      "type": "employment",
-      "applicable_contracts": ["employment"],
-      "key_provisions": {
-        "working_hours": "Section 60A - Maximum 48 hours per week",
-        "overtime": "Section 60A - Minimum 1.5x rate for overtime",
-        "annual_leave": "Section 60E - Minimum 8 days annual leave",
-        "termination": "First Schedule - Notice periods based on service length",
-        "maternity": "Section 37 - 98 days maternity leave",
-        "minimum_wage": "Minimum wage as per government orders"
-      },
-      "penalties": {
-        "individual": "Fine up to RM10,000",
-        "corporate": "Compensation and statutory penalties"
-      },
-      "mandatory_provisions": ["working_hours", "overtime", "minimum_wage", "termination"],
-      "penalty_risk": "medium"
+      "type": "employment"
     },
     "CONTRACT_ACT_MY": {
       "name": "Contracts Act 1950 (Malaysia)",
-      "jurisdiction": "MY",
-      "type": "contract",
-      "applicable_contracts": ["all"],
-      "key_provisions": {
-        "formation": "Sections 2-9 - Contract formation requirements",
-        "consideration": "Sections 26-30 - Consideration requirements",
-        "capacity": "Sections 11-12 - Capacity to contract",
-        "free_consent": "Sections 13-22 - Free consent requirements",
-        "void_agreements": "Sections 23-30 - Void agreements",
-        "performance": "Sections 37-67 - Performance obligations"
-      },
-      "penalties": {
-        "individual": "Varies by breach type",
-        "corporate": "Contract remedies and damages"
-      },
-      "mandatory_provisions": ["formation", "consideration", "capacity", "free_consent"],
-      "penalty_risk": "low"
+      "type": "contract"
     },
-    "GDPR": {
+    "COMPANIES_ACT_MY": {
+      "name": "Companies Act 2016 (Malaysia)",
+      "type": "corporate"
+    },
+    "GDPR_EU": {
       "name": "General Data Protection Regulation (EU)",
-      "jurisdiction": "EU",
-      "type": "data_protection",
-      "applicable_contracts": ["data_processing", "employment", "nda", "service_agreement"],
-      "key_provisions": {
-        "lawful_basis": "Article 6 - Six lawful bases for processing",
-        "consent": "Article 7 - Conditions for consent",
-        "data_subject_rights": "Articles 15-22 - Individual rights",
-        "international_transfers": "Chapter V - Transfers to third countries",
-        "data_protection_officer": "Articles 37-39 - DPO requirements",
-        "privacy_by_design": "Article 25 - Data protection by design and default",
-        "breach_notification": "Articles 33-34 - Breach notification requirements"
-      },
-      "penalties": {
-        "administrative_fines": "Up to €20 million or 4% of annual global turnover",
-        "corrective_measures": "Processing bans, data erasure orders"
-      },
-      "recent_updates": [
-        "2024 Guidelines on AI and automated decision-making",
-        "2023 Adequacy decisions updates",
-        "2024 Guidelines on consent in digital services"
-      ],
-      "mandatory_provisions": ["lawful_basis", "data_subject_rights", "international_transfers", "breach_notification"],
-      "penalty_risk": "high"
+      "type": "data_protection"
     },
-    "CCPA": {
+    "CCPA_US": {
       "name": "California Consumer Privacy Act",
-      "jurisdiction": "US",
-      "type": "data_protection",
-      "applicable_contracts": ["data_processing", "service_agreement", "nda"],
-      "key_provisions": {
-        "consumer_rights": "Right to know, delete, opt-out, non-discrimination",
-        "business_obligations": "Privacy policy requirements and consumer request handling",
-        "third_party_sharing": "Disclosure requirements for data sharing",
-        "sensitive_information": "Additional protections for sensitive personal information"
-      },
-      "penalties": {
-        "civil_penalties": "Up to $7,500 per violation",
-        "private_right": "$100-$750 per consumer per incident"
-      },
-      "mandatory_provisions": ["consumer_rights", "business_obligations"],
-      "penalty_risk": "high"
+      "type": "data_protection"
     },
     "PDPA_SG": {
       "name": "Personal Data Protection Act 2012 (Singapore)",
-      "jurisdiction": "SG",
-      "type": "data_protection",
-      "applicable_contracts": ["data_processing", "employment", "nda", "service_agreement"],
-      "key_provisions": {
-        "consent": "Section 13 - Consent obligations",
-        "purpose_limitation": "Section 12 - Purpose limitation obligation",
-        "notification": "Section 20 - Notification of data breaches",
-        "transfer_limitation": "Section 26 - Transfer limitation obligation"
-      },
-      "penalties": {
-        "financial": "Up to S$1 million fine"
-      },
-      "mandatory_provisions": ["consent", "purpose_limitation", "notification", "transfer_limitation"],
-      "penalty_risk": "high"
+      "type": "data_protection"
     },
     "ISO_27001": {
       "name": "ISO/IEC 27001 Information Security Management",
-      "jurisdiction": "GLOBAL",
-      "type": "information_security",
-      "applicable_contracts": ["data_processing", "service_agreement", "nda"],
-      "key_provisions": {
-        "isms": "Information Security Management System requirements",
-        "risk_assessment": "Risk assessment and treatment processes",
-        "controls": "Annex A security controls framework",
-        "continuous_improvement": "Plan-Do-Check-Act cycle"
-      },
-      "penalties": {
-        "certification": "Loss of certification, audit findings",
-        "business": "Customer trust, contract compliance issues"
-      },
-      "mandatory_provisions": ["isms", "risk_assessment", "controls"],
-      "penalty_risk": "medium"
+      "type": "information_security"
     }
   },
   "contract_types": {
     "data_processing": {
       "name": "Data Processing Agreement",
-      "description": "Agreements governing the processing of personal data",
+      "description": "Agreements governing the processing of personal data by a third party.",
       "common_jurisdictions": ["MY", "SG", "EU", "US", "UK"]
     },
     "employment": {
       "name": "Employment Contract",
-      "description": "Contracts between employers and employees",
+      "description": "Contracts establishing the terms of employment between an employer and employee.",
       "common_jurisdictions": ["MY", "SG", "UK"]
     },
     "nda": {
       "name": "Non-Disclosure Agreement",
-      "description": "Confidentiality agreements protecting sensitive information",
+      "description": "Confidentiality agreements used to protect sensitive information.",
       "common_jurisdictions": ["MY", "SG", "EU", "US", "UK"]
     },
     "service_agreement": {
       "name": "Service Agreement",
-      "description": "Contracts for provision of services",
+      "description": "General contracts for the provision of services.",
       "common_jurisdictions": ["MY", "SG", "EU", "US", "UK"]
     }
   },
   "risk_levels": {
     "high": {
-      "description": "Significant financial penalties, criminal liability, or severe business impact",
+      "description": "Significant financial penalties, criminal liability, or severe business impact.",
       "examples": ["GDPR fines up to 4% of global turnover", "Criminal prosecution possible"]
     },
     "medium": {
-      "description": "Moderate financial penalties, regulatory sanctions, or business disruption",
+      "description": "Moderate financial penalties, regulatory sanctions, or business disruption.",
       "examples": ["Employment tribunal claims", "Regulatory investigations"]
     },
     "low": {
-      "description": "Limited financial exposure, primarily contractual remedies",
+      "description": "Limited financial exposure, primarily contractual remedies.",
       "examples": ["Contract damages", "Specific performance orders"]
     }
   },
   "metadata": {
-    "version": "1.0",
+    "version": "1.1",
     "last_updated": "2025-06-27",
-    "total_laws": 7,
+    "total_laws": 8,
     "total_jurisdictions": 6,
     "supported_contract_types": 4
   }
