@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Import route modules
 from routes.contract import router as contract_router
+from routes.regulations import router as regulations_router
 
 # Configure logging
 logging.basicConfig(
@@ -35,6 +36,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(contract_router)
+app.include_router(regulations_router)
 
 # Root endpoint
 @app.get("/")
