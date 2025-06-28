@@ -8,8 +8,13 @@ export const getRegulationDetail = (lawId: string) => {
     return api.get(`/regulations/${lawId}`);
 };
 
-export const searchRegulations = (formData: FormData) => {
-    return api.post('/regulations/search', formData);
+export const searchRegulations = (payload: {
+    keyword?: string;
+    jurisdiction?: string;
+    type?: string;
+    page?: number;
+}) => {
+    return api.post('/regulations/search', payload);
 };
 
 export const getJurisdictions = () => {

@@ -33,28 +33,21 @@ export default function RegulatoryLibrary() {
     const [modalReg, setModalReg] = useState<RegulatoryFramework | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(true);
 
-    const fetchRegulations = async (pageNum: number, append = false) => {
+    const fetchRegulations = async () => {
         try {
         setLoading(true);
         const shouldSearch = search.trim() || jurisdiction || type;
-        const payload = new FormData();
-        payload.append('page', String(pageNum));
-        if (search.trim()) payload.append('keyword', search.trim());
-        if (jurisdiction) payload.append('jurisdiction', jurisdiction);
-        if (type) payload.append('type', type);
+        const payload: Record<string, any> = {};
+        if (search.trim()) payload.keyword = search.trim();
+        if (jurisdiction) payload.jurisdiction = jurisdiction;
+        if (type) payload.type = type;
 
         const res = shouldSearch
             ? await searchRegulations(payload)
             : await getAllRegulations();
 
-        const fetched = res?.data?.regulations ?? [];
-
-        setRegulations((prev) => (append ? [...prev, ...fetched] : fetched));
-        setHasMore(fetched.length > 0);
-        setPage(pageNum + 1);
+        setRegulations(res?.data?.regulations ?? []);
         } catch (err: any) {
         console.error(err);
         if (err?.response?.data?.detail) {
@@ -69,21 +62,16 @@ export default function RegulatoryLibrary() {
     };
 
     useEffect(() => {
-        fetchRegulations(1);
+        fetchRegulations();
     }, []);
 
     useEffect(() => {
         const delayDebounce = setTimeout(() => {
-        setPage(1);
-        fetchRegulations(1);
+        fetchRegulations();
         }, 400);
 
-    return () => clearTimeout(delayDebounce);
+        return () => clearTimeout(delayDebounce);
     }, [search, jurisdiction, type]);
-
-    const fetchMore = async () => {
-        fetchRegulations(page, true);
-    };
 
     const openRegModal = async (lawId: string) => {
         try {
@@ -161,17 +149,6 @@ export default function RegulatoryLibrary() {
             ))
             )}
         </div>
-
-        {hasMore && !loading && (
-            <div className="text-center mt-6">
-            <button
-                onClick={fetchMore}
-                className="px-6 py-2 bg-blue-700 hover:bg-blue-800 rounded text-white"
-            >
-                View More
-            </button>
-            </div>
-        )}
 
         {modalReg && (
             <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
