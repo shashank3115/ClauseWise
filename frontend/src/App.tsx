@@ -14,7 +14,7 @@ export default function App() {
       <Routes>
         <Route path='/' element={<Dashboard />} />
         <Route path='/analyze' element={<Analyze />} />
-        <Route path='/analysis/{analysisId}' element={<AnalysisResult />} />
+        <Route path='/analysis/:analysisId' element={<AnalysisResult />} />
         <Route path='/bulk-analyze' element={<BulkAnalyze />} />
         <Route path='/compliance' element={<Compliance />} />
         <Route path='/regulations' element={<Regulations />} />
