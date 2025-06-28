@@ -1,69 +1,104 @@
-import { useState } from 'react';
-import { Search, BookOpen, Clock, ChevronRight, XCircle, AlertTriangle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+    Search,
+    BookOpen,
+    Clock,
+    ChevronRight,
+    XCircle,
+    AlertTriangle,
+} from 'lucide-react';
 import Header from '../components/layout/Header';
+import {
+    getAllRegulations,
+    getRegulationDetail,
+    searchRegulations,
+} from '../services/regulatoryService';
+
 interface RegulatoryFramework {
-    code: string;
+    law_id: string;
     name: string;
     jurisdiction: string;
     type: string;
-    applicableContracts: string[];
-    keyProvisions: Record<string, string>;
+    description?: string;
+    key_provisions?: string[];
     penalties?: Record<string, string>;
     recentUpdates?: string[];
 }
-
-// Mock data
-const mockRegulatoryFrameworks: RegulatoryFramework[] = [
-    {
-        code: 'GDPR',
-        name: 'General Data Protection Regulation',
-        jurisdiction: 'EU',
-        type: 'Data Privacy',
-        applicableContracts: ['Data Processing Agreement', 'Employment Contract', 'Service Agreement'],
-        keyProvisions: {
-        'Art. 5': 'Principles relating to processing of personal data',
-        'Art. 6': 'Lawfulness of processing',
-        },
-        penalties: {
-        'Lower Tier': 'Up to €10 million or 2% of annual global turnover',
-        },
-        recentUpdates: ['2023-01-10: Cookie consent guidance update'],
-    },
-    {
-        code: 'PDPA SG',
-        name: 'Personal Data Protection Act (Singapore)',
-        jurisdiction: 'SG',
-        type: 'Data Privacy',
-        applicableContracts: ['NDA', 'Service Agreement'],
-        keyProvisions: {
-        'Section 12': 'Consent obligation',
-        },
-        penalties: {
-        'Max Fine': 'Up to S$1 million or 10% of turnover',
-        },
-        recentUpdates: ['2021-02-01: Breach notification requirement'],
-    },
-];
 
 export default function RegulatoryLibrary() {
     const [search, setSearch] = useState('');
     const [jurisdiction, setJurisdiction] = useState('');
     const [type, setType] = useState('');
+    const [regulations, setRegulations] = useState<RegulatoryFramework[]>([]);
     const [modalReg, setModalReg] = useState<RegulatoryFramework | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
 
-    const filtered = mockRegulatoryFrameworks.filter((r) => {
-        const matchesSearch = r.name.toLowerCase().includes(search.toLowerCase());
-        const matchesJurisdiction = !jurisdiction || r.jurisdiction === jurisdiction;
-        const matchesType = !type || r.type === type;
-        return matchesSearch && matchesJurisdiction && matchesType;
-    });
+    const fetchRegulations = async (pageNum: number, append = false) => {
+        try {
+        setLoading(true);
+        const shouldSearch = search.trim() || jurisdiction || type;
+        const payload = new FormData();
+        payload.append('page', String(pageNum));
+        if (search.trim()) payload.append('keyword', search.trim());
+        if (jurisdiction) payload.append('jurisdiction', jurisdiction);
+        if (type) payload.append('type', type);
+
+        const res = shouldSearch
+            ? await searchRegulations(payload)
+            : await getAllRegulations();
+
+        const fetched = res?.data?.regulations ?? [];
+
+        setRegulations((prev) => (append ? [...prev, ...fetched] : fetched));
+        setHasMore(fetched.length > 0);
+        setPage(pageNum + 1);
+        } catch (err: any) {
+        console.error(err);
+        if (err?.response?.data?.detail) {
+            const message = err.response.data.detail.map((d: any) => d.msg).join(', ');
+            setError(`Validation error: ${message}`);
+        } else {
+            setError('Failed to load regulations.');
+        }
+        } finally {
+        setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchRegulations(1);
+    }, []);
+
+    useEffect(() => {
+        const delayDebounce = setTimeout(() => {
+        setPage(1);
+        fetchRegulations(1);
+        }, 400);
+
+    return () => clearTimeout(delayDebounce);
+    }, [search, jurisdiction, type]);
+
+    const fetchMore = async () => {
+        fetchRegulations(page, true);
+    };
+
+    const openRegModal = async (lawId: string) => {
+        try {
+        const res = await getRegulationDetail(lawId);
+        setModalReg(res.data.regulation);
+        } catch (err) {
+        console.error('Failed to load regulation detail', err);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 to-slate-950 text-gray-100">
         <Header />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10 mt-10 p-6">
-            {/* Search bar */}
             <div className="relative">
             <Search className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
             <input
@@ -73,7 +108,7 @@ export default function RegulatoryLibrary() {
                 onChange={(e) => setSearch(e.target.value)}
             />
             </div>
-            {/* Filter */}
+
             <select
             className="bg-slate-800 border border-slate-600 rounded-md py-2 px-3 text-sm"
             value={jurisdiction}
@@ -82,7 +117,10 @@ export default function RegulatoryLibrary() {
             <option value="">All Jurisdictions</option>
             <option value="EU">EU</option>
             <option value="SG">Singapore</option>
+            <option value="MY">Malaysia</option>
+            <option value="US">United States</option>
             </select>
+
             <select
             className="bg-slate-800 border border-slate-600 rounded-md py-2 px-3 text-sm"
             value={type}
@@ -90,16 +128,23 @@ export default function RegulatoryLibrary() {
             >
             <option value="">All Types</option>
             <option value="Data Privacy">Data Privacy</option>
+            <option value="Employment Law">Employment Law</option>
+            <option value="Consumer Protection">Consumer Protection</option>
             </select>
         </div>
 
-        {/* Regulations cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-            {filtered.length > 0 ? (
-            filtered.map((reg) => (
+            {loading ? (
+            <p className="text-center text-gray-400 col-span-full">Loading regulations...</p>
+            ) : error ? (
+            <p className="text-center text-red-400 col-span-full">{error}</p>
+            ) : regulations.length === 0 ? (
+            <p className="col-span-full text-center text-gray-400">No regulations match your filters.</p>
+            ) : (
+            regulations.map((reg) => (
                 <div
-                key={reg.code}
-                onClick={() => setModalReg(reg)}
+                key={reg.law_id}
+                onClick={() => openRegModal(reg.law_id)}
                 className="bg-slate-800 p-6 rounded-lg border border-slate-700 hover:border-blue-500 hover:shadow-xl cursor-pointer transition-transform transform hover:scale-105"
                 >
                 <div className="flex items-center gap-2 mb-2">
@@ -108,16 +153,25 @@ export default function RegulatoryLibrary() {
                 </div>
                 <p className="text-sm text-gray-300 mb-1">Jurisdiction: <span className="text-white">{reg.jurisdiction}</span></p>
                 <p className="text-sm text-gray-300 mb-1">Type: <span className="text-white">{reg.type}</span></p>
-                <p className="text-xs text-gray-400">{Object.values(reg.keyProvisions)[0] ?? 'No provisions listed'}...</p>
+                <p className="text-xs text-gray-400">{reg.key_provisions?.[0] ?? 'No provisions listed'}...</p>
                 <div className="flex justify-end mt-3 text-blue-400 text-sm">
                     View Details <ChevronRight className="w-4 h-4" />
                 </div>
                 </div>
             ))
-            ) : (
-            <p className="col-span-full text-center text-gray-400">No regulations match your filters.</p>
             )}
         </div>
+
+        {hasMore && !loading && (
+            <div className="text-center mt-6">
+            <button
+                onClick={fetchMore}
+                className="px-6 py-2 bg-blue-700 hover:bg-blue-800 rounded text-white"
+            >
+                View More
+            </button>
+            </div>
+        )}
 
         {modalReg && (
             <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
@@ -129,11 +183,15 @@ export default function RegulatoryLibrary() {
                 <p className="text-sm text-gray-300 mb-2">Jurisdiction: <span className="text-white">{modalReg.jurisdiction}</span></p>
                 <p className="text-sm text-gray-300 mb-2">Type: <span className="text-white">{modalReg.type}</span></p>
 
+                {modalReg.description && (
+                <p className="text-sm text-gray-300 mb-4">{modalReg.description}</p>
+                )}
+
                 <div className="mb-4">
                 <h3 className="text-blue-300 font-semibold mb-2">Key Provisions</h3>
                 <ul className="text-sm space-y-1">
-                    {Object.entries(modalReg.keyProvisions).map(([k, v]) => (
-                    <li key={k}><strong>{k}:</strong> {v}</li>
+                    {modalReg.key_provisions?.map((prov, i) => (
+                    <li key={i}>{prov}</li>
                     ))}
                 </ul>
                 </div>

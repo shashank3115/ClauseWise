@@ -1,13 +1,17 @@
-import api from './api'
+import api from './api';
 
-export const getAllRegulations = () =>
-    api.get('v1/regulations');
+export const getAllRegulations = () => {
+    return api.get('/regulations');
+};
 
-export const getRegulationDetail = () =>
-    api.get('regulations/{law_id}')
+export const getRegulationDetail = (lawId: string) => {
+    return api.get(`/regulations/${lawId}`);
+};
 
-export const searchRegulations = () =>
-    api.post('regulations/search')
+export const searchRegulations = (formData: FormData) => {
+    return api.post('/regulations/search', formData);
+};
 
-export const getJurisdictions = () =>
-    api.get('/regulations/jurisdictions/list')
+export const getJurisdictions = () => {
+    return api.post('/api/regulations/jurisdictions/list');
+};

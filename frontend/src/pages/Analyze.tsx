@@ -4,21 +4,12 @@ import { Upload, CheckCircle, XCircle, Info, File } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/layout/Header';
 import { getJurisdictions } from '../services/regulatoryService';
+import { analyzeContractFile } from '../services/contractService';
 
 type FileWithMeta = File & {
     status: 'pending' | 'uploaded' | 'failed';
     analysisId?: string;
 };
-
-// Mock data
-// const contractTypes = [
-//     'Employment',
-//     'NDA',
-//     'Service Agreement',
-//     'Data Processing Addendum',
-//     'Sales Contract',
-//     'Lease Agreement',
-// ];
 
 export default function Analyze() {
     const [file, setFile] = useState<FileWithMeta | null>(null);
@@ -85,37 +76,45 @@ export default function Analyze() {
     // Analyzing file (upload file, select choice)
     const handleAnalyze = async () => {
         if (!file || !jurisdiction) {
-        alert('Please fill all fields and upload a file.');
-        return;
+            alert('Please fill all fields and upload a file.');
+            return;
         }
 
         setStatus('uploading');
         setProgress(10);
 
-        // Here change to backend api?
         try {
-        await new Promise((res) => setTimeout(res, 500));
-        setProgress(40);
+            await new Promise((res) => setTimeout(res, 500));
+            setProgress(30);
 
-        file.status = 'uploaded';
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('jurisdiction', jurisdiction);
 
-        setStatus('analyzing');
-        setProgress(70);
+            const response = await analyzeContractFile(formData);
+            file.status = 'uploaded';
+            setStatus('analyzing');
+            setProgress(70);
 
-        await new Promise((res) => setTimeout(res, 1000));
-        const analysisId = `ANALYSIS-${Math.floor(Math.random() * 10000)}`;
-        file.analysisId = analysisId;
+            const result = response.data;
+            console.log('Analysis result:', result);
 
-        setProgress(100);
-        setStatus('complete');
+            const analysisId = `ANALYSIS-${Math.floor(Math.random() * 10000)}`;
+            file.analysisId = analysisId;
 
-        setTimeout(() => {
+            localStorage.setItem(`analysis-${analysisId}`, JSON.stringify(result));
+
+            setProgress(100);
+            setStatus('complete');
+
+            setTimeout(() => {
             navigate(`/analysis/${analysisId}`);
-        }, 1000);
-        } catch {
-        setStatus('error');
-        setProgress(0);
-        file.status = 'failed';
+            }, 1000);
+        } catch (err) {
+            console.error('Error during analysis:', err);
+            setStatus('error');
+            setProgress(0);
+            file.status = 'failed';
         }
     };
 
