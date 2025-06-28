@@ -2,7 +2,7 @@
 Legacy WatsonX client module - DEPRECATED
 
 This module is deprecated in favor of the new modular ai_client package.
-Use `from backend.utils.ai_client import WatsonXClient, WatsonXConfig` instead.
+Use `from utils.ai_client import WatsonXClient, WatsonXConfig` instead.
 
 This module is kept for backward compatibility during migration.
 """
@@ -24,7 +24,7 @@ class WatsonXClient:
     def __init__(self, config: Optional[NewWatsonXConfig] = None):
         warnings.warn(
             "WatsonXClient from watsonx_client.py is deprecated. "
-            "Use 'from backend.utils.ai_client import WatsonXClient' instead.",
+            "Use 'from utils.ai_client import WatsonXClient' instead.",
             DeprecationWarning,
             stacklevel=2
         )
@@ -52,7 +52,7 @@ class WatsonXConfig(NewWatsonXConfig):
     def __init__(self, *args, **kwargs):
         warnings.warn(
             "WatsonXConfig from watsonx_client.py is deprecated. "
-            "Use 'from backend.utils.ai_client import WatsonXConfig' instead.",
+            "Use 'from utils.ai_client import WatsonXConfig' instead.",
             DeprecationWarning,
             stacklevel=2
         )

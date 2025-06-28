@@ -4,10 +4,10 @@ import asyncio
 import logging
 from typing import List, Optional
 
-from backend.models.BulkAnalysisRequest import BulkAnalysisRequest
-from backend.models.ContractAnalysisModel import ContractAnalysisRequest
-from backend.models.ContractAnalysisResponseModel import ContractAnalysisResponse
-from backend.service.ContractAnalyzerService import ContractAnalyzerService
+from models.BulkAnalysisRequest import BulkAnalysisRequest
+from models.ContractAnalysisModel import ContractAnalysisRequest
+from models.ContractAnalysisResponseModel import ContractAnalysisResponse
+from service.ContractAnalyzerService import ContractAnalyzerService
 
 logger = logging.getLogger(__name__)
 

@@ -20,8 +20,28 @@ class TextExtractor:
         self.extraction_timeout = extraction_timeout
         self.max_pages = 100  # Reasonable limit for PDF pages
     
-    async def extract_text(self, file_content: bytes, filename: str) -> str:
-        """Extract text with timeout protection and format-specific handling."""
+    def extract_text(self, file_content: bytes, filename: str) -> str:
+        """Synchronous wrapper for extract_text - for backwards compatibility."""
+        import asyncio
+        
+        # Try to get existing event loop, or create a new one
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If loop is already running, we need to use asyncio.create_task
+                # But this is tricky in sync context, so we'll create new loop
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, self.extract_text_async(file_content, filename))
+                    return future.result()
+            else:
+                return loop.run_until_complete(self.extract_text_async(file_content, filename))
+        except RuntimeError:
+            # No event loop exists, create one
+            return asyncio.run(self.extract_text_async(file_content, filename))
+    
+    async def extract_text_async(self, file_content: bytes, filename: str) -> str:
+        """Async version - this is the main implementation."""
         file_ext = Path(filename).suffix.lower()
         
         try:
@@ -67,23 +87,38 @@ class TextExtractor:
         raise ValueError("Unable to decode text file with supported encodings")
     
     async def _extract_from_pdf(self, file_content: bytes) -> str:
-        """Extract text from PDF with enhanced error handling."""
+        """Extract text from PDF with enhanced error handling and version compatibility."""
         try:
             pdf_file = io.BytesIO(file_content)
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
             
-            if len(pdf_reader.pages) == 0:
+            # Handle both old and new PyPDF2 versions
+            # Check which version is available by checking attributes
+            if hasattr(PyPDF2, 'PdfReader'):
+                # New version (3.0+)
+                pdf_reader = PyPDF2.PdfReader(pdf_file)
+                pages = pdf_reader.pages
+            else:
+                # Old version (2.x and earlier)
+                pdf_reader = PyPDF2.PdfFileReader(pdf_file)
+                pages = [pdf_reader.getPage(i) for i in range(pdf_reader.numPages)]
+            
+            if len(pages) == 0:
                 raise ValueError("PDF contains no pages")
             
-            if len(pdf_reader.pages) > self.max_pages:
+            if len(pages) > self.max_pages:
                 raise ValueError(f"PDF too large (>{self.max_pages} pages)")
             
             text_content = []
             failed_pages = 0
             
-            for page_num, page in enumerate(pdf_reader.pages):
+            for page_num, page in enumerate(pages):
                 try:
-                    page_text = page.extract_text()
+                    # Handle both old and new methods
+                    if hasattr(page, 'extract_text'):
+                        page_text = page.extract_text()  # New version
+                    else:
+                        page_text = page.extractText()   # Old version
+                        
                     if page_text and page_text.strip():
                         text_content.append(page_text)
                 except Exception as e:
@@ -91,7 +126,7 @@ class TextExtractor:
                     logger.warning(f"Failed to extract text from PDF page {page_num + 1}: {e}")
                     
                     # If too many pages fail, abort
-                    if failed_pages > len(pdf_reader.pages) * 0.5:
+                    if failed_pages > len(pages) * 0.5:
                         raise ValueError("Too many pages failed to extract text")
             
             if not text_content:

@@ -13,8 +13,8 @@ class LawLoader:
        in a specified directory.
     """
     def __init__(self, 
-                 mappings_file: str = "backend/data/general/mappings.json",
-                 detailed_laws_dir: str = "backend/data/laws"):
+                 mappings_file: str = "data/general/mappings.json",
+                 detailed_laws_dir: str = "data/laws"):
         
         self.mappings_file = Path(mappings_file)
         self.detailed_laws_dir = Path(detailed_laws_dir)

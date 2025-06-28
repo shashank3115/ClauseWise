@@ -1,7 +1,7 @@
 import datetime
 from typing import List, Optional
 from pydantic import BaseModel
-from backend.models.ContractAnalysisModel import ContractAnalysisRequest
+from models.ContractAnalysisModel import ContractAnalysisRequest
 
 class BulkAnalysisRequest(BaseModel):
     contracts: List[ContractAnalysisRequest]

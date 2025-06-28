@@ -2,15 +2,15 @@ import asyncio
 import logging
 from typing import List, Dict
 
-from backend.models.BulkAnalysisRequest import BulkAnalysisRequest
-from backend.models.ContractAnalysisModel import ContractAnalysisRequest
-from backend.models.ContractAnalysisResponseModel import ContractAnalysisResponse
-from backend.service.ContractAnalyzerService import ContractAnalyzerService
+from models.BulkAnalysisRequest import BulkAnalysisRequest
+from models.ContractAnalysisModel import ContractAnalysisRequest
+from models.ContractAnalysisResponseModel import ContractAnalysisResponse
+from service.ContractAnalyzerService import ContractAnalyzerService
 
 # Import our new helper modules
-from backend.utils.file_validators import FileValidator, TextSanitizer
-from backend.utils.text_extractors import TextExtractor, DocumentMetadataExtractor
-from backend.utils.process_managers import (
+from utils.file_validators import FileValidator, TextSanitizer
+from utils.text_extractors import TextExtractor, DocumentMetadataExtractor
+from utils.process_managers import (
     BulkProcessManager, 
     JurisdictionValidator, 
     ProcessingLimiter
@@ -73,7 +73,7 @@ class DocumentProcessorService:
             self.file_validator.validate_file(file_content, filename)
             
             # Step 2: Extract text content
-            extracted_text = await self.text_extractor.extract_text(file_content, filename)
+            extracted_text = await self.text_extractor.extract_text_async(file_content, filename)
             
             # Step 3: Clean and validate text
             cleaned_text = self.text_sanitizer.clean_and_validate_text(extracted_text)
