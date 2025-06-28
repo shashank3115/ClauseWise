@@ -36,28 +36,29 @@ export default function RegulatoryLibrary() {
 
     const fetchRegulations = async () => {
         try {
-        setLoading(true);
-        const shouldSearch = search.trim() || jurisdiction || type;
-        const payload: Record<string, any> = {};
-        if (search.trim()) payload.keyword = search.trim();
-        if (jurisdiction) payload.jurisdiction = jurisdiction;
-        if (type) payload.type = type;
+            setLoading(true);
+            const shouldSearch = search.trim() || jurisdiction || type;
+            const payload: Record<string, any> = {};
 
-        const res = shouldSearch
-            ? await searchRegulations(payload)
-            : await getAllRegulations();
+            if (search.trim()) payload.search_term = search.trim();
+            if (jurisdiction) payload.jurisdiction = jurisdiction;
+            if (type) payload.regulation_type = type;
 
-        setRegulations(res?.data?.regulations ?? []);
+            const res = shouldSearch
+                ? await searchRegulations(payload)
+                : await getAllRegulations();
+
+            setRegulations(res?.data?.regulations ?? []);
         } catch (err: any) {
-        console.error(err);
-        if (err?.response?.data?.detail) {
-            const message = err.response.data.detail.map((d: any) => d.msg).join(', ');
-            setError(`Validation error: ${message}`);
-        } else {
-            setError('Failed to load regulations.');
-        }
+            console.error(err);
+            if (err?.response?.data?.detail) {
+                const message = err.response.data.detail.map((d: any) => d.msg).join(', ');
+                setError(`Validation error: ${message}`);
+            } else {
+                setError('Failed to load regulations.');
+            }
         } finally {
-        setLoading(false);
+            setLoading(false);
         }
     };
 
