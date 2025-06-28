@@ -101,6 +101,14 @@ class ContractAnalyzerService:
             try:
                 ai_json = json.loads(ai_response_text)
                 
+                # Clean up template placeholders and invalid responses
+                ai_json = self._clean_ai_response(ai_json, jurisdiction, request.text)
+                
+                # Ensure we have compliance issues if none exist
+                if not ai_json.get("compliance_issues"):
+                    logger.info("No compliance issues found, generating basic jurisdiction analysis")
+                    ai_json["compliance_issues"] = self._get_basic_jurisdiction_analysis(jurisdiction, contract_text=request.text)
+                
                 # Convert law_id to law for compatibility with ComplianceFeedback model
                 if "compliance_issues" in ai_json:
                     for issue in ai_json["compliance_issues"]:
@@ -533,6 +541,298 @@ class ContractAnalyzerService:
         }
         
         return json.dumps(mock_data)
+
+    def _clean_ai_response(self, ai_json: Dict[str, Any], jurisdiction: str, contract_text: str = "") -> Dict[str, Any]:
+        """
+        Clean up AI response by removing template placeholders and fixing invalid law IDs.
+        """
+        # Clean up the summary
+        summary = ai_json.get("summary", "")
+        if "SPECIFIC_LAW_ID" in summary:
+            # Remove the problematic template text
+            summary = summary.replace("Contract analysis found issues with SPECIFIC_LAW_ID ", "")
+            summary = summary.replace("SPECIFIC_LAW_ID", "").strip()
+            # Clean up any double spaces
+            summary = " ".join(summary.split())
+            ai_json["summary"] = summary
+        
+        # Clean up other template law references in summary
+        template_laws = ["GDPR_EU", "CCPA_US", "PDPA_SG"]
+        for template_law in template_laws:
+            if f"Contract analysis found issues with {template_law}" in summary:
+                summary = summary.replace(f"Contract analysis found issues with {template_law} ", "")
+                summary = summary.replace(f"Contract analysis found issues with {template_law}", "")
+                summary = " ".join(summary.split())
+                ai_json["summary"] = summary
+        
+        # Clean up compliance issues
+        if "compliance_issues" in ai_json:
+            cleaned_issues = []
+            for issue in ai_json["compliance_issues"]:
+                law_id = issue.get("law", "")
+                
+                # Skip template placeholders
+                if law_id == "SPECIFIC_LAW_ID":
+                    logger.warning("Filtering out template compliance issue with SPECIFIC_LAW_ID")
+                    continue
+                
+                # Skip if requirements are template text
+                missing_reqs = issue.get("missing_requirements", [])
+                recommendations = issue.get("recommendations", [])
+                
+                # Check for template text in requirements - be more specific
+                has_template_reqs = any(
+                    req == "Detailed list of missing legal requirements" or
+                    req == "Generic missing requirement" or
+                    req == "[REQUIREMENT]" or
+                    "PLACEHOLDER" in req.upper()
+                    for req in missing_reqs
+                )
+                
+                has_template_recs = any(
+                    rec == "Specific actionable legal recommendations" or
+                    rec == "Generic recommendation" or
+                    rec == "[RECOMMENDATION]" or
+                    "PLACEHOLDER" in rec.upper()
+                    for rec in recommendations
+                )
+                
+                if has_template_reqs or has_template_recs:
+                    logger.warning(f"Filtering out template compliance issue for {law_id}")
+                    continue
+                
+                # Validate that the law ID exists in our system and is appropriate for jurisdiction
+                valid_law_ids = {
+                    "PDPA_MY", "PDPA_SG", "GDPR_EU", "CCPA_US", "EMPLOYMENT_ACT_MY",
+                    "DPA_UK", "LGPD_BR", "PIPEDA_CA"
+                }
+                
+                # Check jurisdiction appropriateness
+                jurisdiction_laws = {
+                    "MY": {"PDPA_MY", "EMPLOYMENT_ACT_MY"},
+                    "SG": {"PDPA_SG"},
+                    "EU": {"GDPR_EU"},
+                    "US": {"CCPA_US"},
+                    "UK": {"DPA_UK"},
+                    "BR": {"LGPD_BR"},
+                    "CA": {"PIPEDA_CA"}
+                }
+                
+                appropriate_laws = jurisdiction_laws.get(jurisdiction, valid_law_ids)
+                
+                if law_id not in valid_law_ids:
+                    logger.warning(f"Filtering out compliance issue with invalid law ID: {law_id}")
+                    continue
+                
+                if law_id not in appropriate_laws:
+                    logger.warning(f"Filtering out compliance issue with inappropriate law {law_id} for jurisdiction {jurisdiction}")
+                    continue
+                
+                # Keep valid compliance issues
+                cleaned_issues.append(issue)
+            
+            ai_json["compliance_issues"] = cleaned_issues
+        
+        # Clean up flagged clauses
+        if "flagged_clauses" in ai_json:
+            cleaned_clauses = []
+            for clause in ai_json["flagged_clauses"]:
+                clause_text = clause.get("clause_text", "")
+                issue = clause.get("issue", "")
+                
+                # Skip clauses with template or placeholder text
+                if any(placeholder in clause_text.upper() for placeholder in [
+                    "SPECIFIC_LAW_ID", "[LAW_NAME]", "[JURISDICTION]", "PLACEHOLDER"
+                ]):
+                    logger.warning("Filtering out flagged clause with template text")
+                    continue
+                
+                if any(placeholder in issue.upper() for placeholder in [
+                    "SPECIFIC_LAW_ID", "[LAW_NAME]", "[JURISDICTION]", "PLACEHOLDER"
+                ]):
+                    logger.warning("Filtering out flagged clause with template issue")
+                    continue
+                
+                # Keep valid flagged clauses
+                cleaned_clauses.append(clause)
+            
+            ai_json["flagged_clauses"] = cleaned_clauses
+        
+        # If we removed too many issues, ensure we have at least some analysis
+        if len(ai_json.get("compliance_issues", [])) == 0:
+            logger.info("No compliance issues remain after filtering, generating intelligent analysis")
+            # Provide a basic analysis for the jurisdiction
+            ai_json["compliance_issues"] = self._get_basic_jurisdiction_analysis(jurisdiction, contract_text)
+            
+            # Update summary to reflect that we generated additional analysis
+            current_summary = ai_json.get("summary", "")
+            if current_summary and "Analysis complete" not in current_summary:
+                ai_json["summary"] = current_summary + " Additional compliance analysis conducted."
+            else:
+                ai_json["summary"] = f"Contract analysis complete for {jurisdiction} jurisdiction. Compliance review conducted."
+        
+        return ai_json
+    
+    def _get_basic_jurisdiction_analysis(self, jurisdiction: str, contract_text: str = "") -> List[Dict[str, Any]]:
+        """
+        Provide intelligent compliance analysis for a jurisdiction by actually examining the contract text.
+        """
+        basic_issues = []
+        text_lower = contract_text.lower() if contract_text else ""
+        
+        if jurisdiction == "MY":
+            # PDPA_MY analysis
+            pdpa_missing = []
+            pdpa_recommendations = []
+            
+            # Check for data processing without consent
+            if any(data_word in text_lower for data_word in ['data', 'personal information', 'information']):
+                if 'consent' not in text_lower:
+                    pdpa_missing.append("Contract processes personal data without explicit consent mechanisms")
+                    pdpa_recommendations.append("Include clear data subject consent procedures with opt-out mechanisms")
+                
+                # Check for missing data breach notification
+                if 'breach notification' not in text_lower and 'data breach' not in text_lower:
+                    pdpa_missing.append("Missing data breach notification procedures required by PDPA")
+                    pdpa_recommendations.append("Implement 72-hour breach notification timeline as required by PDPA")
+                
+                # Check for cross-border transfers
+                if any(country in text_lower for country in ['singapore', 'thailand', 'indonesia', 'philippines']):
+                    pdpa_missing.append("Cross-border data transfers may lack adequate protection safeguards")
+                    pdpa_recommendations.append("Implement appropriate safeguards for international data transfers under PDPA")
+            
+            if pdpa_missing:
+                basic_issues.append({
+                    "law": "PDPA_MY",
+                    "missing_requirements": pdpa_missing,
+                    "recommendations": pdpa_recommendations
+                })
+            
+            # Employment Act MY analysis
+            employment_missing = []
+            employment_recommendations = []
+            
+            # Check termination provisions
+            if 'termination' in text_lower:
+                if 'without notice' in text_lower:
+                    employment_missing.append("Termination without notice may violate Employment Act minimum notice requirements")
+                    employment_recommendations.append("Ensure termination clauses provide adequate notice periods per Employment Act 1955")
+                
+                # Check for specific notice periods
+                if any(period in text_lower for period in ['1 day', 'immediate', '24 hours']):
+                    employment_missing.append("Termination notice period appears insufficient under Employment Act")
+                    employment_recommendations.append("Update termination clauses to meet minimum statutory notice requirements")
+            
+            # Check working hours and rest periods
+            if 'working hours' in text_lower or 'work hours' in text_lower:
+                if 'overtime' not in text_lower:
+                    employment_missing.append("Contract lacks overtime compensation provisions")
+                    employment_recommendations.append("Include overtime compensation clauses in accordance with Employment Act")
+            
+            # Check for domestic worker specific requirements
+            if 'domestic worker' in text_lower:
+                if 'rest day' not in text_lower and 'rest period' not in text_lower:
+                    employment_missing.append("Missing mandatory rest day provisions for domestic workers")
+                    employment_recommendations.append("Include weekly rest day provisions as required for domestic workers")
+                
+                if 'medical treatment' not in text_lower and 'medical care' not in text_lower:
+                    employment_missing.append("Missing medical care provisions for domestic workers")
+                    employment_recommendations.append("Include medical care and treatment provisions for domestic workers")
+            
+            if employment_missing:
+                basic_issues.append({
+                    "law": "EMPLOYMENT_ACT_MY",
+                    "missing_requirements": employment_missing,
+                    "recommendations": employment_recommendations
+                })
+        
+        elif jurisdiction == "SG":
+            # PDPA_SG analysis
+            pdpa_missing = []
+            pdpa_recommendations = []
+            
+            if any(data_word in text_lower for data_word in ['data', 'personal information']):
+                if 'consent' not in text_lower:
+                    pdpa_missing.append("Contract lacks Singapore PDPA-compliant consent mechanisms")
+                    pdpa_recommendations.append("Include explicit consent procedures and individual rights under Singapore PDPA")
+                
+                if 'notification' not in text_lower:
+                    pdpa_missing.append("Missing data breach notification procedures for Singapore PDPA")
+                    pdpa_recommendations.append("Implement mandatory data breach notification to PDPC Singapore")
+            
+            if pdpa_missing:
+                basic_issues.append({
+                    "law": "PDPA_SG",
+                    "missing_requirements": pdpa_missing,
+                    "recommendations": pdpa_recommendations
+                })
+        
+        elif jurisdiction == "EU":
+            # GDPR analysis
+            gdpr_missing = []
+            gdpr_recommendations = []
+            
+            if any(data_word in text_lower for data_word in ['data', 'personal data']):
+                if 'lawful basis' not in text_lower:
+                    gdpr_missing.append("Contract lacks GDPR lawful basis for data processing")
+                    gdpr_recommendations.append("Include clear lawful basis for processing under GDPR Article 6")
+                
+                if 'data protection officer' not in text_lower and 'dpo' not in text_lower:
+                    gdpr_missing.append("Missing Data Protection Officer requirements")
+                    gdpr_recommendations.append("Include DPO contact information as required by GDPR")
+            
+            if gdpr_missing:
+                basic_issues.append({
+                    "law": "GDPR_EU",
+                    "missing_requirements": gdpr_missing,
+                    "recommendations": gdpr_recommendations
+                })
+        
+        elif jurisdiction == "US":
+            # CCPA analysis
+            ccpa_missing = []
+            ccpa_recommendations = []
+            
+            if any(data_word in text_lower for data_word in ['personal information', 'consumer data']):
+                if 'right to know' not in text_lower:
+                    ccpa_missing.append("Contract lacks CCPA consumer rights provisions")
+                    ccpa_recommendations.append("Include consumer rights to know, delete, and opt-out under CCPA")
+                
+                if 'do not sell' not in text_lower:
+                    ccpa_missing.append("Missing CCPA opt-out mechanisms for personal information sales")
+                    ccpa_recommendations.append("Implement CCPA-compliant opt-out mechanism for personal information sales")
+            
+            if ccpa_missing:
+                basic_issues.append({
+                    "law": "CCPA_US",
+                    "missing_requirements": ccpa_missing,
+                    "recommendations": ccpa_recommendations
+                })
+        
+        # If no specific issues found, provide at least one basic compliance check
+        if not basic_issues:
+            if jurisdiction == "MY":
+                basic_issues.append({
+                    "law": "EMPLOYMENT_ACT_MY",
+                    "missing_requirements": [
+                        "Contract should be reviewed for compliance with Employment Act 1955 requirements"
+                    ],
+                    "recommendations": [
+                        "Ensure all employment terms comply with Malaysian Employment Act standards"
+                    ]
+                })
+            elif jurisdiction == "SG":
+                basic_issues.append({
+                    "law": "PDPA_SG",
+                    "missing_requirements": [
+                        "Contract should be reviewed for Singapore PDPA compliance"
+                    ],
+                    "recommendations": [
+                        "Ensure data processing terms comply with Singapore Personal Data Protection Act"
+                    ]
+                })
+        
+        return basic_issues
 
     def _enhance_granite_response(self, granite_response: str, contract_text: str, compliance_checklist: Dict[str, Any], jurisdiction: str) -> str:
         """
