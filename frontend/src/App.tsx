@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
 import AnalysisResult from './pages/AnalysisResult'
@@ -9,21 +10,56 @@ import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import AdminManagement from './pages/AdminManagement'
+import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
   return (
     <Router>
       <Routes>
-        <Route path='/' element={<Dashboard />} />
-        <Route path='/analyze' element={<Analyze />} />
-        <Route path='/analysis/:analysisId' element={<AnalysisResult />} />
-        <Route path='/bulk-analyze' element={<BulkAnalyze />} />
+        {/* Public routes */}
+        <Route path='/' element={<Landing />} />
+        <Route path='/login' element={<Login />} />
+        <Route path='/signup' element={<Signup />} />
         <Route path='/compliance' element={<Compliance />} />
         <Route path='/regulations' element={<Regulations />} />
-        <Route path='/reports' element={<Reports />} />
-        <Route path='/settings' element={<Settings />} />
-        <Route path='/login' element={<Login/>} />
-        <Route path='/signup' element={<Signup />} />
+
+        {/* Protected routes */}
+        <Route path='/dashboard' element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+        <Route path='/analyze' element={
+          <ProtectedRoute>
+            <Analyze />
+          </ProtectedRoute>
+        } />
+        <Route path='/analysis/:analysisId' element={
+          <ProtectedRoute>
+            <AnalysisResult />
+          </ProtectedRoute>
+        } />
+        <Route path='/bulk-analyze' element={
+          <ProtectedRoute>
+            <BulkAnalyze />
+          </ProtectedRoute>
+        } />
+        <Route path='/reports' element={
+          <ProtectedRoute>
+            <Reports />
+          </ProtectedRoute>
+        } />
+        <Route path='/settings' element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        } />
+        <Route path='/admin' element={
+          <ProtectedRoute requiredRole="super-admin">
+            <AdminManagement />
+          </ProtectedRoute>
+        } />
       </Routes>
     </Router>
   )
