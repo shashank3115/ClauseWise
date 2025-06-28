@@ -7,8 +7,8 @@ import Compliance from './pages/Compliance'
 import Regulations from './pages/Regulations'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
-import Login from './pages/login'
-import Signup from './pages/signup'
+import Login from './pages/Login'
+import Signup from './pages/Signup'
 
 export default function App() {
   return (
