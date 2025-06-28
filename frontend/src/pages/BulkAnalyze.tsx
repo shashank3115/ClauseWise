@@ -190,9 +190,9 @@ interface FileStatus {
                 <h2 className="text-xl font-semibold text-blue-300 mb-4 flex items-center justify-center gap-2">
                 <Download className="w-6 h-6" /> Bulk Export Results
                 </h2>
-                <p className="text-gray-300 mb-6">Download a consolidated report of all completed analyses.</p>
+                <p className="text-gray-300 mb-6">Download a report of all completed analyses.</p>
                 <button className="bg-purple-700 hover:bg-purple-800 text-white font-bold py-2 px-6 rounded-md shadow-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-slate-900">
-                Download Consolidated Report (CSV/PDF)
+                Download Report (CSV/PDF)
                 </button>
             </section>
             )}

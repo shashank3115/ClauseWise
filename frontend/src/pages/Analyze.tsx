@@ -20,19 +20,19 @@ const jurisdictions = [
 ];
 
 // Mock data
-const contractTypes = [
-    'Employment',
-    'NDA',
-    'Service Agreement',
-    'Data Processing Addendum',
-    'Sales Contract',
-    'Lease Agreement',
-];
+// const contractTypes = [
+//     'Employment',
+//     'NDA',
+//     'Service Agreement',
+//     'Data Processing Addendum',
+//     'Sales Contract',
+//     'Lease Agreement',
+// ];
 
 export default function Analyze() {
     const [file, setFile] = useState<FileWithMeta | null>(null);
     const [jurisdiction, setJurisdiction] = useState('');
-    const [contractType, setContractType] = useState('');
+    // const [contractType, setContractType] = useState('');
     const [status, setStatus] = useState<'idle' | 'uploading' | 'analyzing' | 'complete' | 'error'>('idle');
     const [progress, setProgress] = useState(0);
     const navigate = useNavigate();
@@ -62,7 +62,7 @@ export default function Analyze() {
 
     // Analyzing file (upload file, select choice)
     const handleAnalyze = async () => {
-        if (!file || !jurisdiction || !contractType) {
+        if (!file || !jurisdiction) {
         alert('Please fill all fields and upload a file.');
         return;
         }
@@ -135,7 +135,7 @@ export default function Analyze() {
             </div>
             )}
 
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="mt-8">
             {/* Select jurisdiction */}
             <div>
                 <label className="block text-sm font-medium text-blue-300 mb-2">Jurisdiction</label>
@@ -154,7 +154,7 @@ export default function Analyze() {
             </div>
 
             {/* Select contract type */}
-            <div>
+            {/* <div>
                 <label className="block text-sm font-medium text-blue-300 mb-2">Contract Type</label>
                 <select
                 value={contractType}
@@ -168,8 +168,8 @@ export default function Analyze() {
                     </option>
                 ))}
                 </select>
-            </div>
-            </div>
+            </div> */}
+        </div>
 
             {/* Status */}
             {status !== 'idle' && (
@@ -193,7 +193,7 @@ export default function Analyze() {
             <div className="mt-8 text-center">
             <button
                 onClick={handleAnalyze}
-                disabled={!file || !jurisdiction || !contractType || status === 'uploading' || status === 'analyzing'}
+                disabled={!file || !jurisdiction || status === 'uploading' || status === 'analyzing'}
                 className="bg-blue-700 hover:bg-blue-800 px-6 py-3 rounded-md text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed transition"
             >
                 {status === 'uploading'
@@ -204,6 +204,6 @@ export default function Analyze() {
             </button>
             </div>
         </main>
-        </div>
+    </div>
     );
 }
