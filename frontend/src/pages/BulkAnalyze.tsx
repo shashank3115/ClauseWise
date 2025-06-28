@@ -45,6 +45,7 @@ interface FileStatus {
 
         setIsUploading(true);
 
+        // Replace backend logic here
         for (const file of selectedFiles) {
         const fileName = file.name;
 

@@ -70,6 +70,7 @@ export default function Analyze() {
         setStatus('uploading');
         setProgress(10);
 
+        // Here change to backend api?
         try {
         await new Promise((res) => setTimeout(res, 500));
         setProgress(40);

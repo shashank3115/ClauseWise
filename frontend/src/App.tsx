@@ -7,6 +7,8 @@ import Compliance from './pages/Compliance'
 import Regulations from './pages/Regulations'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
+import Login from './pages/login'
+import Signup from './pages/signup'
 
 export default function App() {
   return (
@@ -20,6 +22,8 @@ export default function App() {
         <Route path='/regulations' element={<Regulations />} />
         <Route path='/reports' element={<Reports />} />
         <Route path='/settings' element={<Settings />} />
+        <Route path='/login' element={<Login/>} />
+        <Route path='/signup' element={<Signup />} />
       </Routes>
     </Router>
   )
