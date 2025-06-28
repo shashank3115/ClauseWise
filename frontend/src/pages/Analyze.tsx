@@ -1,23 +1,14 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, CheckCircle, XCircle, Info, File } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/layout/Header';
+import { getJurisdictions } from '../services/regulatoryService';
 
 type FileWithMeta = File & {
     status: 'pending' | 'uploaded' | 'failed';
     analysisId?: string;
 };
-
-// Mock data
-const jurisdictions = [
-    { code: 'MY', name: 'Malaysia' },
-    { code: 'SG', name: 'Singapore' },
-    { code: 'EU', name: 'European Union' },
-    { code: 'US', name: 'United States' },
-    { code: 'UK', name: 'United Kingdom' },
-    { code: 'GL', name: 'Global' },
-];
 
 // Mock data
 // const contractTypes = [
@@ -32,10 +23,41 @@ const jurisdictions = [
 export default function Analyze() {
     const [file, setFile] = useState<FileWithMeta | null>(null);
     const [jurisdiction, setJurisdiction] = useState('');
-    // const [contractType, setContractType] = useState('');
+    const [jurisdictions, setJurisdictions] = useState<{ code: string; name: string }[]>([]);
     const [status, setStatus] = useState<'idle' | 'uploading' | 'analyzing' | 'complete' | 'error'>('idle');
     const [progress, setProgress] = useState(0);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const fetchJurisdictions = async () => {
+            try {
+                const response = await getJurisdictions();
+                console.log("Fetched jurisdictions:", response);
+
+                const codes: string[] = response?.data?.jurisdictions ?? [];
+
+                const JURISDICTION_NAMES: Record<string, string> = {
+                    MY: 'Malaysia',
+                    SG: 'Singapore',
+                    EU: 'European Union',
+                    US: 'United States',
+                    UK: 'United Kingdom',
+                    GL: 'Global',
+                };
+
+                const formatted = codes.map(code => ({
+                    code,
+                    name: JURISDICTION_NAMES[code] || code,
+                }));
+
+                setJurisdictions(formatted);
+            } catch (error) {
+                console.error('Failed to fetch jurisdictions:', error);
+            }
+        };
+
+        fetchJurisdictions();
+    }, []);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles.length > 0) {
@@ -141,16 +163,16 @@ export default function Analyze() {
             <div>
                 <label className="block text-sm font-medium text-blue-300 mb-2">Jurisdiction</label>
                 <select
-                value={jurisdiction}
-                onChange={(e) => setJurisdiction(e.target.value)}
-                className="w-full p-3 bg-slate-700 border border-slate-600 rounded text-white"
-                >
-                <option value="">Select jurisdiction</option>
-                {jurisdictions.map((j) => (
-                    <option key={j.code} value={j.code}>
-                    {j.name}
-                    </option>
-                ))}
+                    value={jurisdiction}
+                    onChange={(e) => setJurisdiction(e.target.value)}
+                    className="w-full p-3 bg-slate-700 border border-slate-600 rounded text-white"
+                    >
+                    <option value="">Select jurisdiction</option>
+                    {jurisdictions.map((j) => (
+                        <option key={j.code} value={j.code}>
+                        {j.name}
+                        </option>
+                    ))}
                 </select>
             </div>
 

@@ -97,7 +97,7 @@ export default function Dashboard() {
                         <h3 className="text-xl font-semibold text-blue-300 mb-5">Quick Actions</h3>
                         <div className="space-y-4">
                             <a
-                            href="/analyze"
+                            href="/compliance"
                             className="flex items-center gap-4 p-4 border border-slate-700 rounded-md hover:bg-slate-700/20 group transform hover:translate-x-1 hover:shadow-md transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800"
                             >
                             <div className="p-3 bg-blue-700/50 text-blue-200 rounded-md group-hover:bg-blue-700/70 flex-shrink-0 shadow-sm">
@@ -110,7 +110,7 @@ export default function Dashboard() {
                             <ChevronRight className="ml-auto w-5 h-5 text-blue-400 group-hover:translate-x-1 transition-transform duration-200" />
                             </a>
                             <a
-                            href="/reports"
+                            href="/regulations"
                             className="flex items-center gap-4 p-4 border border-slate-700 rounded-md hover:bg-slate-700/20 group transform hover:translate-x-1 hover:shadow-md transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800"
                             >
                             <div className="p-3 bg-blue-600/50 text-blue-100 rounded-md group-hover:bg-blue-600/70 flex-shrink-0 shadow-sm">

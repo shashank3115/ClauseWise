@@ -1,13 +1,13 @@
-import api from './root'
+import api from './api'
 
 export const getAllRegulations = () =>
-    api.post('api/v1/regulations');
+    api.get('v1/regulations');
 
 export const getRegulationDetail = () =>
-    api.post('api/regulations/{law_id}')
+    api.get('regulations/{law_id}')
 
 export const searchRegulations = () =>
-    api.post('api/regulations/search')
+    api.post('regulations/search')
 
 export const getJurisdictions = () =>
-    api.post('api/regulations/jurisdictions/list')
+    api.get('/regulations/jurisdictions/list')
