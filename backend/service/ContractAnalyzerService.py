@@ -334,52 +334,47 @@ class ContractAnalyzerService:
         # Convert text to lowercase for easier pattern matching
         text_lower = contract_text.lower()
         
-        # Define problematic patterns to look for
+        # Define problematic patterns to look for (simplified and more generic)
         risk_patterns = {
             "indefinite_retention": {
-                "patterns": ["indefinite period", "indefinitely", "unlimited retention", "minimum of 3 years", "retained for.*years"],
+                "patterns": ["indefinite", "indefinitely", "unlimited", "perpetual"],
                 "severity": "high",
                 "issue": "Data retention period is excessive or indefinite, violating data minimization principles"
             },
-            "no_consent_transfers": {
-                "patterns": ["shall not be required to obtain prior consent", "no consent required", "will not sign.*data processing agreement", "consent.*is their sole responsibility"],
+            "broad_liability_limitation": {
+                "patterns": ["liability.*shall not exceed", "not liable", "no liability", "limit.*liability"],
                 "severity": "high", 
-                "issue": "Cross-border data transfers without obtaining required consent or proper agreements"
+                "issue": "Overly broad liability limitations may inadequately protect against damages"
             },
-            "weak_security": {
-                "patterns": ["iso/iec 27001 certification is not held", "no routine security audit", "shall not undergo.*external audit", "not obligated to comply"],
+            "weak_termination_notice": {
+                "patterns": ["immediate termination", "without notice", "at any time"],
                 "severity": "medium",
-                "issue": "Inadequate security measures and certifications"
+                "issue": "Inadequate termination notice periods may violate employment or contractual standards"
             },
-            "limited_breach_notification": {
-                "patterns": ["only if the breach is classified as high-risk", "minor.*breaches.*not subject", "not responsible for monitoring"],
-                "severity": "high",
-                "issue": "Breach notification requirements do not meet regulatory standards"
-            },
-            "broad_indemnification": {
-                "patterns": ["controller indemnifies.*processor.*all.*claims", "indemnifies.*against all", "shall not be liable.*misuse"],
+            "breach_notification_gaps": {
+                "patterns": ["breach", "security incident", "unauthorized access"],
                 "severity": "medium",
-                "issue": "Overly broad indemnification clause favoring data processor"
+                "issue": "Contract should specify clear breach notification procedures and timelines"
             },
-            "unilateral_modifications": {
-                "patterns": ["reserves the right to modify.*agreement.*any time", "15 days.*notice.*continued use", "3 days.*notice"],
+            "indemnification_issues": {
+                "patterns": ["indemnify", "hold harmless", "defend.*against"],
                 "severity": "medium",
-                "issue": "Unilateral modification rights without proper consent mechanisms"
+                "issue": "Indemnification clauses should be reviewed for balanced risk allocation"
             },
-            "inadequate_liability": {
-                "patterns": ["liability.*shall not exceed.*€500", "total liability.*not exceed.*500", "liability.*€[0-9]+[^0-9]*regardless"],
-                "severity": "high",
-                "issue": "Liability caps are inadequate for potential GDPR fines and damages"
+            "confidentiality_concerns": {
+                "patterns": ["confidential", "proprietary", "trade secret"],
+                "severity": "low",
+                "issue": "Confidentiality terms should include clear data handling and protection requirements"
             },
-            "no_data_deletion": {
-                "patterns": ["no data deletion.*guaranteed", "not guaranteed", "may be retained.*years"],
-                "severity": "high",
-                "issue": "No guaranteed data deletion violates right to erasure under GDPR"
+            "modification_rights": {
+                "patterns": ["modify.*agreement", "amend.*contract", "change.*terms"],
+                "severity": "medium",
+                "issue": "Contract modification rights should require proper notice and consent procedures"
             },
-            "cross_border_violations": {
-                "patterns": ["united states.*india.*south africa", "replicated across.*regions", "third-party infrastructure.*united states"],
+            "data_processing_gaps": {
+                "patterns": ["data", "personal information", "processing"],
                 "severity": "high",
-                "issue": "International data transfers without adequate safeguards"
+                "issue": "Data processing terms should comply with applicable privacy regulations"
             }
         }
         
@@ -387,11 +382,9 @@ class ContractAnalyzerService:
         for pattern_key, pattern_info in risk_patterns.items():
             for pattern in pattern_info["patterns"]:
                 if pattern in text_lower:
-                    # Find the actual clause text (approximate)
-                    import re
-                    match = re.search(f".{{0,100}}{re.escape(pattern)}.{{0,100}}", text_lower, re.IGNORECASE)
-                    if match:
-                        clause_text = match.group(0).strip()
+                    # Find the actual clause text with better formatting
+                    clause_text = self._extract_clean_clause_text(contract_text, pattern)
+                    if clause_text:
                         flagged_clauses.append({
                             "clause_text": clause_text,
                             "issue": pattern_info["issue"],
@@ -402,7 +395,15 @@ class ContractAnalyzerService:
         # Generate compliance issues based on jurisdiction
         jurisdiction_laws = self.law_loader.get_laws_for_jurisdiction(jurisdiction)
         
+        # Filter to only laws that have detailed JSON files (to avoid generic fallbacks)
+        valid_law_files = {
+            "PDPA_MY", "PDPA_SG", "GDPR_EU", "CCPA_US", "EMPLOYMENT_ACT_MY"
+        }
+        
         for law_id, law_data in jurisdiction_laws.items():
+            # Skip laws that don't have detailed definitions to avoid generic fallbacks
+            if law_id not in valid_law_files:
+                continue
                 
             missing_requirements = []
             recommendations = []
@@ -497,33 +498,6 @@ class ContractAnalyzerService:
                     missing_requirements.append("Overtime compensation terms may violate Employment Act")
                     recommendations.append("Ensure overtime compensation complies with Malaysian Employment Act requirements")
             
-            # Global compliance checks (apply to all jurisdictions)
-            elif jurisdiction == "GLOBAL" or not missing_requirements:
-                # Apply general data protection and contract law principles
-                if "indefinite" in text_lower and "retention" in text_lower:
-                    missing_requirements.append("Indefinite data retention violates data minimization principles")
-                    recommendations.append("Define specific, justified data retention periods with automated deletion")
-                
-                if "liability" in text_lower and ("€500" in text_lower or "$500" in text_lower or "500" in text_lower):
-                    missing_requirements.append("Liability caps are inadequate for potential data protection violations")
-                    recommendations.append("Increase liability limits to reflect potential regulatory penalties")
-                
-                if "no data deletion" in text_lower or "not guaranteed" in text_lower:
-                    missing_requirements.append("Lack of data deletion guarantees violates data subject rights")
-                    recommendations.append("Guarantee data deletion and return upon contract termination")
-                
-                if "consent.*sole responsibility" in text_lower:
-                    missing_requirements.append("Unclear data controller/processor responsibilities")
-                    recommendations.append("Define clear roles and responsibilities for data handling")
-                
-                if ("united states" in text_lower or "india" in text_lower or "china" in text_lower) and "data" in text_lower:
-                    missing_requirements.append("International data transfers require adequate safeguards")
-                    recommendations.append("Implement appropriate safeguards for international data transfers")
-                
-                if "breach" in text_lower and ("no notification" in text_lower or "not notify" in text_lower):
-                    missing_requirements.append("Inadequate data breach notification procedures")
-                    recommendations.append("Implement timely breach notification procedures to authorities and individuals")
-            
             # Add compliance issue if we found problems
             if missing_requirements:
                 compliance_issues.append({
@@ -582,7 +556,10 @@ class ContractAnalyzerService:
         # Merge Granite's insights with our domain expertise
         # Prefer Granite's summary if it exists and is meaningful
         final_summary = granite_data.get("summary", "")
-        if not final_summary or len(final_summary.strip()) < 20:
+        if (not final_summary or 
+            len(final_summary.strip()) < 20 or 
+            "Error: Could not parse AI response" in final_summary):
+            # Use our enhanced summary when Granite's is missing or contains errors
             final_summary = enhanced_data["summary"]
         else:
             # Enhance Granite's summary with our insights
@@ -640,3 +617,101 @@ class ContractAnalyzerService:
         
         logger.info(f"Enhanced response created with {len(combined_clauses)} flagged clauses and {len(compliance_by_law)} compliance issues")
         return json.dumps(enhanced_response)
+
+    def _extract_clean_clause_text(self, contract_text: str, pattern: str) -> str:
+        """
+        Extract a clean, readable clause text that contains the specified pattern.
+        Returns complete logical clauses with proper formatting and context.
+        """
+        import re
+        
+        # Normalize text but preserve section structure
+        normalized_text = re.sub(r'\s+', ' ', contract_text.strip())
+        
+        # Find pattern location
+        pattern_match = re.search(re.escape(pattern), normalized_text, re.IGNORECASE)
+        if not pattern_match:
+            return ""
+        
+        # First, try to find logical sections (numbered clauses, paragraphs)
+        # Split by numbered sections or clear paragraph breaks
+        sections = re.split(r'(?:\n\s*\d+\.|(?:\n\s*){2,})', contract_text)
+        
+        # Find which section contains our pattern
+        target_section = ""
+        for section in sections:
+            if pattern.lower() in section.lower():
+                target_section = section.strip()
+                break
+        
+        if target_section:
+            # Clean up the section while preserving structure
+            clean_section = re.sub(r'\s+', ' ', target_section)
+            clean_section = clean_section.strip()
+            
+            # If it starts with a number and period (numbered clause), return the whole clause
+            if re.match(r'^\d+\.\s*[A-Z]', clean_section):
+                # This is a numbered clause - return it complete
+                return clean_section
+            else:
+                # Find the sentence or logical unit that contains the pattern
+                # Split by sentence-ending punctuation followed by capital letters
+                sentences = re.split(r'[.!?]+\s+(?=[A-Z])', clean_section)
+                
+                pattern_sentence_idx = -1
+                for i, sentence in enumerate(sentences):
+                    if pattern.lower() in sentence.lower():
+                        pattern_sentence_idx = i
+                        break
+                
+                if pattern_sentence_idx >= 0:
+                    # Include the pattern sentence plus some context
+                    start_idx = max(0, pattern_sentence_idx - 1)
+                    end_idx = min(len(sentences), pattern_sentence_idx + 2)
+                    
+                    context_sentences = sentences[start_idx:end_idx]
+                    result = '. '.join(context_sentences).strip()
+                    
+                    # Ensure proper punctuation
+                    if not result.endswith(('.', '!', '?')):
+                        result += '.'
+                    
+                    return result
+        
+        # Fallback: extract context around the pattern if section-based approach fails
+        pattern_pos = pattern_match.start()
+        
+        # Look for logical boundaries around the pattern
+        start_pos = max(0, pattern_pos - 200)
+        end_pos = min(len(normalized_text), pattern_pos + 200)
+        
+        # Find sentence boundaries to avoid cutting mid-sentence
+        context_text = normalized_text[start_pos:end_pos]
+        
+        # Try to find complete sentences around the pattern
+        sentences = re.split(r'[.!?]+\s+(?=[A-Z])', context_text)
+        pattern_sentence = ""
+        
+        for sentence in sentences:
+            if pattern.lower() in sentence.lower():
+                pattern_sentence = sentence.strip()
+                break
+        
+        if pattern_sentence:
+            # Add proper punctuation if missing
+            if not pattern_sentence.endswith(('.', '!', '?')):
+                pattern_sentence += '.'
+            return pattern_sentence
+        
+        # Last resort: return a cleaned excerpt
+        excerpt = context_text.strip()
+        
+        # Try to end at a reasonable boundary
+        if len(excerpt) > 100:
+            # Find the last sentence boundary within reasonable length
+            for i in range(len(excerpt) - 1, max(0, len(excerpt) - 50), -1):
+                if excerpt[i] in '.!?' and i < len(excerpt) - 1 and excerpt[i + 1].isspace():
+                    excerpt = excerpt[:i + 1]
+                    break
+        
+        return excerpt

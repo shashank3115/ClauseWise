@@ -73,7 +73,7 @@ class DocumentProcessorService:
             self.file_validator.validate_file(file_content, filename)
             
             # Step 2: Extract text content
-            extracted_text = await self.text_extractor.extract_text(file_content, filename)
+            extracted_text = await self.text_extractor.extract_text_async(file_content, filename)
             
             # Step 3: Clean and validate text
             cleaned_text = self.text_sanitizer.clean_and_validate_text(extracted_text)
