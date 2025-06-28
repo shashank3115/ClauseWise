@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # Import route modules
 from routes.contract import router as contract_router
 from routes.regulations import router as regulations_router
+from routes.ai_insights import router as ai_insights_router
 
 # Configure logging
 logging.basicConfig(
@@ -37,6 +38,7 @@ app.add_middleware(
 # Include routers
 app.include_router(contract_router)
 app.include_router(regulations_router)
+app.include_router(ai_insights_router)
 
 # Root endpoint
 @app.get("/")
