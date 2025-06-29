@@ -500,14 +500,6 @@ graph LR
 
 ---
 
-## 🏅 Awards & Recognition
-
-- 🥇 **IBM TechXchange Hackathon 2025** - Submitted for AI Innovation Category
-- 🎯 **RegTech Innovation** - Addressing real-world compliance challenges
-- 🤖 **Best AI Implementation** - Creative use of IBM Watson technology
-
----
-
 ## 👥 Team
 
 **Built with ❤️ for the IBM TechXchange Hackathon 2025**
