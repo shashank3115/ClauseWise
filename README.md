@@ -38,7 +38,6 @@
 - **Regulatory Alerts**: Proactive identification of compliance gaps
 
 ### 💼 **Enterprise-Grade Features**
-- **Bulk Analysis**: Process multiple documents simultaneously
 - **Export Capabilities**: PDF reports for stakeholder sharing
 - **RESTful API**: Easy integration with existing systems
 - **Comprehensive Documentation**: Auto-generated API docs with OpenAPI/Swagger
@@ -121,7 +120,6 @@ Our frontend is built as a sophisticated Single Page Application (SPA) that deli
 | **Document Analyzer** | Core functionality | File upload, text input, real-time analysis |
 | **AI Insights** | Intelligence layer | Summarization, clause explanation, risk assessment |
 | **Compliance Center** | Regulatory overview | Multi-jurisdiction compliance status |
-| **Bulk Processing** | Enterprise feature | Multiple document analysis with batch results |
 | **Reports & Export** | Business intelligence | PDF generation, data visualization |
 
 ### **📱 Responsive Design System**
@@ -184,7 +182,6 @@ const { data, isLoading, error } = useQuery(
 |----------|--------|-------------|--------|
 | `/contract/analyze` | POST | Analyze contract text for compliance | ✅ Live |
 | `/contract/analyze/file` | POST | Upload & analyze document files | ✅ Live |
-| `/contract/analyze/bulk` | POST | Bulk document processing | ✅ Live |
 | `/contract/risk-score` | POST | Generate compliance risk scores | ✅ Live |
 | `/contract/extract-text` | POST | Extract text from documents | ✅ Live |
 
@@ -317,12 +314,10 @@ curl -X POST "http://localhost:8000/ai/summarize" \
 
 ### **For Legal Professionals**
 - **Document Acceleration**: Process contracts 90% faster with AI-powered analysis
-- **Compliance Auditing**: Bulk analysis of client contracts for regulatory gaps
 - **Client Communication**: Generate plain-language summaries for non-legal stakeholders
 - **Multi-jurisdiction**: Handle cross-border compliance requirements efficiently
 
 ### **For Enterprises**
-- **Bulk Processing**: Analyze hundreds of contracts simultaneously
 - **Regulatory Monitoring**: Proactive compliance tracking across multiple jurisdictions
 - **Risk Management**: Quantified risk assessment with actionable recommendations
 - **Report Generation**: Executive dashboards and PDF reports for stakeholders
@@ -338,12 +333,11 @@ curl -X POST "http://localhost:8000/ai/summarize" \
 6. **Export Report**: Download PDF for stakeholder review
 
 #### **Legal Professional Journey**
-1. **Bulk Upload**: Select multiple client contracts for analysis
-2. **Jurisdiction Selection**: Choose relevant regulatory frameworks
-3. **AI Analysis**: Get detailed compliance reports with clause explanations
-4. **Risk Prioritization**: Focus on high-risk items first
-5. **Client Reports**: Generate professional summaries for clients
-6. **Compliance Tracking**: Monitor ongoing compliance status
+1. **Jurisdiction Selection**: Choose relevant regulatory frameworks
+2. **AI Analysis**: Get detailed compliance reports with clause explanations
+3. **Risk Prioritization**: Focus on high-risk items first
+4. **Client Reports**: Generate professional summaries for clients
+5. **Compliance Tracking**: Monitor ongoing compliance status
 
 ---
 
@@ -497,14 +491,6 @@ graph LR
 - Real-time regulatory updates
 - **AI Assistant**: Conversational AI for legal queries
 - **API Marketplace**: Third-party integrations and plugins
-
----
-
-## 🏅 Awards & Recognition
-
-- 🥇 **IBM TechXchange Hackathon 2025** - Submitted for AI Innovation Category
-- 🎯 **RegTech Innovation** - Addressing real-world compliance challenges
-- 🤖 **Best AI Implementation** - Creative use of IBM Watson technology
 
 ---
 
