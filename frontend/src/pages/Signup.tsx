@@ -280,13 +280,13 @@ export default function Signup() {
                             {isLoading ? 'Creating account...' : 'Create account'}
                         </button>
 
-                        <div className="text-center">
+                    <div className="text-center">
                             <p className="text-sm text-gray-300">
-                                Already have an account?{' '}
+                            Already have an account?{' '}
                                 <Link to="/login" className="text-blue-400 hover:text-blue-300 font-medium">
                                     Sign in
-                                </Link>
-                            </p>
+                            </Link>
+                        </p>
                         </div>
                     </div>
                 </form>
