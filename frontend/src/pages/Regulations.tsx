@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react';
 import {
     Search,
     BookOpen,
-    Clock,
     ChevronRight,
     XCircle,
-    AlertTriangle,
 } from 'lucide-react';
 import Header from '../components/layout/Header';
 import {
@@ -21,8 +19,6 @@ interface RegulatoryFramework {
     type: string;
     description?: string;
     key_provisions?: string[];
-    penalties?: Record<string, string>;
-    recentUpdates?: string[];
 }
 
 export default function RegulatoryLibrary() {
@@ -182,36 +178,12 @@ export default function RegulatoryLibrary() {
                             <p className="text-sm text-gray-300 mb-4">{modalReg.description}</p>
                         )}
 
-                        <div className="mb-4">
-                            <h3 className="text-blue-300 font-semibold mb-2">Key Provisions</h3>
-                            <ul className="text-sm space-y-1">
-                                {modalReg.key_provisions?.map((prov, i) => (
-                                    <li key={i}>{prov}</li>
-                                ))}
-                            </ul>
-                        </div>
-
-                        {modalReg.penalties && (
+                        {modalReg.key_provisions && (
                             <div className="mb-4">
-                                <h3 className="text-red-300 font-semibold flex items-center gap-2 mb-2">
-                                    <AlertTriangle className="w-4 h-4" /> Penalties
-                                </h3>
+                                <h3 className="text-blue-300 font-semibold mb-2">Key Provisions</h3>
                                 <ul className="text-sm space-y-1">
-                                    {Object.entries(modalReg.penalties).map(([k, v]) => (
-                                        <li key={k}><strong>{k}:</strong> {v}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-
-                        {modalReg.recentUpdates && (
-                            <div>
-                                <h3 className="text-blue-300 font-semibold flex items-center gap-2 mb-2">
-                                    <Clock className="w-4 h-4" /> Recent Updates
-                                </h3>
-                                <ul className="list-disc pl-5 text-sm space-y-1">
-                                    {modalReg.recentUpdates.map((u, i) => (
-                                        <li key={i}>{u}</li>
+                                    {modalReg.key_provisions.map((prov: string, i: number) => (
+                                        <li key={i}>{prov.replace(/_/g, ' ')}</li>
                                     ))}
                                 </ul>
                             </div>
