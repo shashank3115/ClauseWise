@@ -546,38 +546,86 @@ Return analysis in JSON format with summary, flagged_clauses, and compliance_iss
         """
         Generate critical compliance issues that are specific to the contract type and jurisdiction.
         Enhanced for IBM Granite compatibility with specific statutory references.
+        Only generates issues for laws that are actually applicable to the contract and jurisdiction.
         """
         issues = []
         text_lower = contract_text.lower()
         
-        # Employment contract compliance (only for employment contracts in Malaysia)
+        logger.info(f"Generating compliance issues for {metadata['type']} contract in {jurisdiction} jurisdiction")
+        
+        # Employment contract compliance (ONLY for employment contracts in Malaysia)
         if metadata['type'] == 'Employment' and jurisdiction == 'MY':
             requirements = []
             recommendations = []
             
-            # Check for critical Employment Act 1955 violations
-            if not re.search(r'(?:notice|termination).*(?:\d+.*(?:week|month|day))', text_lower):
-                requirements.append("Termination notice provisions do not meet Employment Act 1955 Section 12 minimum requirements")
-                recommendations.append("Add termination clause specifying minimum 4 weeks notice for employees with >2 years service")
+            # Enhanced Employment Act 1955 compliance checks
             
-            if not re.search(r'overtime.*(?:compensation|payment|rate)', text_lower):
+            # 1. Termination notice provisions (Section 12)
+            notice_found = re.search(r'(?:notice|termination).*(?:\d+.*(?:week|month|day))', text_lower)
+            if not notice_found:
+                requirements.append("Termination notice provisions do not meet Employment Act 1955 Section 12 minimum requirements")
+                recommendations.append("Add termination clause specifying minimum notice: 2 weeks for <2 years service, 4 weeks for >2 years service")
+            
+            # 2. Working hours limitations (Section 60A)
+            hours_violation = False
+            hours_matches = re.finditer(r'(\d+).*hours?.*(?:per|each).*(?:day|week)', text_lower)
+            for match in hours_matches:
+                hours = int(match.group(1))
+                period = match.group(0)
+                if ('day' in period and hours > 8) or ('week' in period and hours > 48):
+                    hours_violation = True
+                    requirements.append(f"Working hours exceed Employment Act 1955 Section 60A maximum (8 hours/day, 48 hours/week)")
+                    recommendations.append("Adjust working hours to comply with statutory maximums under Section 60A")
+                    break
+            
+            # 3. Overtime compensation (Section 60A)
+            if not re.search(r'overtime.*(?:compensation|payment|rate|1\.5|time.*half)', text_lower):
                 requirements.append("Missing overtime compensation violates Employment Act 1955 Section 60A")
                 recommendations.append("Include overtime payment at minimum 1.5x normal hourly rate as mandated by Section 60A")
             
-            if not re.search(r'annual.*leave|vacation.*day', text_lower):
+            # 4. Annual leave entitlement (Section 60E)
+            leave_found = re.search(r'annual.*leave.*(\d+).*day|(\d+).*day.*annual.*leave', text_lower)
+            if not leave_found:
                 requirements.append("Missing annual leave entitlement violates Employment Act 1955 Section 60E")
-                recommendations.append("Specify annual leave: 8 days (<2 years), 12 days (2-5 years), 16 days (>5 years)")
+                recommendations.append("Specify annual leave entitlement: 8 days (<2 years), 12 days (2-5 years), 16 days (>5 years)")
+            elif leave_found:
+                # Check if leave days are sufficient
+                leave_days = int(leave_found.group(1) or leave_found.group(2))
+                if leave_days < 8:
+                    requirements.append(f"Annual leave of {leave_days} days below Employment Act 1955 Section 60E minimum")
+                    recommendations.append("Increase annual leave to statutory minimum of 8 days as required by Section 60E")
             
-            # Check working hours violations
-            hours_match = re.search(r'(\d+).*hours?.*(?:per|each).*(?:day|week)', text_lower)
-            if hours_match:
-                hours = int(hours_match.group(1))
-                if 'week' in hours_match.group(0) and hours > 48:
-                    requirements.append(f"Working hours of {hours} per week exceeds Employment Act 1955 maximum of 48 hours")
-                    recommendations.append("Reduce working hours to comply with 48-hour weekly maximum under Section 60A")
-                elif 'day' in hours_match.group(0) and hours > 8:
-                    requirements.append(f"Working hours of {hours} per day exceeds Employment Act 1955 maximum of 8 hours")
-                    recommendations.append("Reduce daily working hours to 8-hour maximum as mandated by Employment Act")
+            # 5. Rest days and public holidays (Sections 60C, 60D)
+            if not re.search(r'rest.*day|public.*holiday|gazetted.*holiday', text_lower):
+                requirements.append("Missing rest day and public holiday provisions required under Employment Act 1955 Sections 60C, 60D")
+                recommendations.append("Include provisions for weekly rest days and gazetted public holidays as mandated")
+            
+            # 6. Probation period limits (Section 11)
+            probation_match = re.search(r'probation.*(\d+).*month|(\d+).*month.*probation', text_lower)
+            if probation_match:
+                probation_months = int(probation_match.group(1) or probation_match.group(2))
+                if probation_months > 6:
+                    requirements.append(f"Probation period of {probation_months} months exceeds Employment Act 1955 Section 11 maximum")
+                    recommendations.append("Reduce probation period to maximum 6 months as required by Section 11")
+            
+            # 7. Minimum wage compliance
+            salary_matches = re.finditer(r'salary.*rm\s*(\d+(?:,\d+)*)|rm\s*(\d+(?:,\d+)*).*salary', text_lower)
+            for match in salary_matches:
+                salary_str = (match.group(1) or match.group(2)).replace(',', '')
+                salary_amount = int(salary_str)
+                if salary_amount < 1500:
+                    requirements.append(f"Monthly salary of RM{salary_amount} below minimum wage of RM1,500")
+                    recommendations.append("Adjust salary to meet Minimum Wages Order 2022 requirement of RM1,500")
+                    break
+            
+            # 8. EPF and SOCSO contributions
+            if not re.search(r'epf|employees.*provident.*fund', text_lower):
+                requirements.append("Missing EPF contribution provisions required under EPF Act 1991")
+                recommendations.append("Include EPF contribution clause (11% employee, 12-13% employer)")
+            
+            if not re.search(r'socso|social.*security|employment.*injury', text_lower):
+                requirements.append("Missing SOCSO contribution provisions required under SOCSO Act 1969")
+                recommendations.append("Include SOCSO contribution clause for employment injury and invalidity coverage")
             
             if requirements:
                 issues.append({
@@ -585,11 +633,29 @@ Return analysis in JSON format with summary, flagged_clauses, and compliance_iss
                     "missing_requirements": requirements,
                     "recommendations": recommendations
                 })
+                logger.info(f"Generated comprehensive Employment Act MY compliance issue with {len(requirements)} requirements")
         
         # Data protection compliance (only for contracts that actually process personal data)
         if metadata['has_data_processing']:
-            law_id = f"PDPA_{jurisdiction}" if jurisdiction in ['MY', 'SG'] else f"GDPR_{jurisdiction}" if jurisdiction == 'EU' else f"CCPA_{jurisdiction}"
-            law_name = {"MY": "Personal Data Protection Act 2010", "SG": "Personal Data Protection Act 2012", "EU": "GDPR", "US": "CCPA"}.get(jurisdiction, "privacy law")
+            # Determine the correct data protection law based on jurisdiction
+            law_mapping = {
+                "MY": "PDPA_MY",
+                "SG": "PDPA_SG", 
+                "EU": "GDPR_EU",
+                "US": "CCPA_US"
+            }
+            
+            law_id = law_mapping.get(jurisdiction)
+            if not law_id:
+                logger.warning(f"No data protection law defined for jurisdiction '{jurisdiction}'")
+                return issues
+            
+            law_name = {
+                "MY": "Personal Data Protection Act 2010", 
+                "SG": "Personal Data Protection Act 2012", 
+                "EU": "GDPR", 
+                "US": "CCPA"
+            }.get(jurisdiction, "privacy law")
             
             requirements = []
             recommendations = []
@@ -607,13 +673,34 @@ Return analysis in JSON format with summary, flagged_clauses, and compliance_iss
                 requirements.append("Missing GDPR data subject rights (access, rectification, erasure, portability)")
                 recommendations.append("Implement all GDPR data subject rights as mandated by Articles 15-20")
             
+            if jurisdiction == 'US' and not re.search(r'(?:consumer.*rights|privacy.*rights|opt.*out)', text_lower):
+                # Enhanced CCPA-specific violation detection
+                requirements, recommendations = self._detect_ccpa_violations(contract_text, text_lower)
+                if requirements:
+                    requirements.append("Missing consumer privacy rights disclosure required under CCPA")
+                    recommendations.append("Add consumer privacy notice with opt-out mechanisms for data selling")
+                else:
+                    requirements = ["Missing consumer privacy rights disclosure required under CCPA"]
+                    recommendations = ["Add consumer privacy notice with opt-out mechanisms for data selling"]
+            
             if requirements:
                 issues.append({
                     "law": law_id,
                     "missing_requirements": requirements,
                     "recommendations": recommendations
                 })
+                logger.info(f"Generated {law_id} compliance issue with {len(requirements)} requirements")
         
+        # For US service contracts, check general contract law compliance (not employment law!)
+        if jurisdiction == 'US' and not metadata['has_data_processing'] and metadata['type'] in ['Service', 'General']:
+            # For US service contracts, focus on consumer protection and general contract law
+            # Do NOT apply employment law or foreign privacy laws
+            logger.info(f"US {metadata['type']} contract detected - checking general contract compliance only")
+            
+            # Only generate CCPA issues if there's actual data processing
+            # Don't generate any employment law issues for service contracts
+            
+        logger.info(f"Generated {len(issues)} total compliance issues for {jurisdiction} {metadata['type']} contract")
         return issues
     
     def _generate_contextual_summary(self, flagged_clauses: List[Dict], compliance_issues: List[Dict], 
@@ -702,12 +789,25 @@ Return analysis in JSON format with summary, flagged_clauses, and compliance_iss
                 
                 # Deduct points based on number of missing requirements
                 missing_count = len(issue.missing_requirements)
-                if missing_count >= 4:
-                    risk_deductions += 25  # Severe compliance gaps
-                elif missing_count >= 2:
-                    risk_deductions += 15  # Moderate compliance gaps
+                
+                # CCPA violations are scored more severely due to strict liability
+                if issue.law == "CCPA_US":
+                    if missing_count >= 5:
+                        risk_deductions += 40  # Critical CCPA violations
+                    elif missing_count >= 3:
+                        risk_deductions += 30  # Severe CCPA violations
+                    elif missing_count >= 2:
+                        risk_deductions += 20  # Moderate CCPA violations
+                    else:
+                        risk_deductions += 12  # Minor CCPA violations
                 else:
-                    risk_deductions += 8   # Minor compliance gaps
+                    # Standard scoring for other laws
+                    if missing_count >= 4:
+                        risk_deductions += 25  # Severe compliance gaps
+                    elif missing_count >= 2:
+                        risk_deductions += 15  # Moderate compliance gaps
+                    else:
+                        risk_deductions += 8   # Minor compliance gaps
                 
                 jurisdiction = analysis_response.jurisdiction or "MY"
                 jurisdiction_risks[jurisdiction] = jurisdiction_risks.get(jurisdiction, 0) + law_risk
@@ -753,10 +853,15 @@ Return analysis in JSON format with summary, flagged_clauses, and compliance_iss
             "PDPA_MY": 20000,
             "PDPA_SG": 25000,
             "GDPR_EU": 50000,
-            "CCPA_US": 30000
+            "CCPA_US": 75000  # Increased base risk for CCPA due to $7,500 per violation penalty
         }
         
         base_risk = base_risks.get(law_id, 10000)
+        
+        # CCPA has particularly harsh penalties - scale more aggressively
+        if law_id == "CCPA_US":
+            return base_risk * (1 + (violation_count * 0.5))  # More aggressive scaling for CCPA
+        
         return base_risk * (1 + (violation_count * 0.3))  # Scale by violation count
     
     def _preprocess_contract_text(self, contract_text: str) -> str:
@@ -855,6 +960,11 @@ Return analysis in JSON format with summary, flagged_clauses, and compliance_iss
                 "moderate": ["services", "performance", "completion", "milestone"],
                 "weak": ["provide", "deliver", "complete"]
             },
+            "Privacy": {
+                "strong": ["privacy policy", "privacy notice", "california consumer privacy act", "ccpa", "personal information collection", "privacy rights"],
+                "moderate": ["personal information", "data collection", "consumer rights", "privacy", "california resident"],
+                "weak": ["collect", "information", "data"]
+            },
             "NDA": {
                 "strong": ["non-disclosure", "confidentiality agreement", "trade secret", "proprietary information"],
                 "moderate": ["confidential", "proprietary", "confidentiality"],
@@ -906,10 +1016,12 @@ Return analysis in JSON format with summary, flagged_clauses, and compliance_iss
         
         logger.info(f"Contract type analysis: {type_scores} -> Selected: {contract_type}")
         
-        # Enhanced content analysis with better detection
+        # Enhanced content analysis with better detection including California/CCPA specific content
         has_data_processing = any(phrase in text_lower for phrase in [
             "personal data", "data processing", "data protection", "privacy policy",
-            "data subject", "gdpr", "pdpa", "collect information", "process data"
+            "data subject", "gdpr", "pdpa", "collect information", "process data",
+            "personal information", "california", "ccpa", "consumer rights", "privacy rights",
+            "collect personal", "share data", "sell data", "sale of personal information"
         ])
         
         has_termination_clauses = any(phrase in text_lower for phrase in [
@@ -935,11 +1047,11 @@ Return analysis in JSON format with summary, flagged_clauses, and compliance_iss
         # Extract meaningful sections with improved filtering
         sections = self._extract_contract_sections_only(contract_text)
         
-        # Enhanced jurisdiction detection
+        # Enhanced jurisdiction detection with CCPA-specific indicators
         jurisdiction_indicators = {
             "MY": ["malaysia", "malaysian", "kuala lumpur", "ringgit", "rm ", "employment act 1955", "companies act 2016"],
             "SG": ["singapore", "singaporean", "sgd", "singapore dollar", "companies act singapore"],
-            "US": ["united states", "usd", "us dollar", "state of california", "state of new york", "delaware"],
+            "US": ["united states", "usd", "us dollar", "state of california", "state of new york", "delaware", "california", "ccpa", "california consumer privacy act", "california resident"],
             "EU": ["european union", "gdpr", "euro", "eur", "brussels", "directive 95/46/ec"]
         }
         
@@ -1215,6 +1327,16 @@ OUTPUT FORMAT: Valid JSON with summary, flagged_clauses, and compliance_issues a
             # Fix malformed law field (contains multiple laws separated by |)
             law_field = issue.get("law", "")
             
+            # CRITICAL: Block Malaysian Employment Act from being applied to US contracts
+            if jurisdiction == "US" and law_field == "EMPLOYMENT_ACT_MY":
+                logger.error(f"BLOCKED in AI cleaning: Malaysian Employment Act cannot be applied to US jurisdiction contract - removing issue")
+                continue
+            
+            # CRITICAL: Block any foreign employment law application
+            if law_field == "EMPLOYMENT_ACT_MY" and jurisdiction != "MY":
+                logger.error(f"BLOCKED in AI cleaning: Malaysian Employment Act cannot be applied to {jurisdiction} jurisdiction contract - removing issue")
+                continue
+            
             if "|" in law_field:
                 # Split and take the first valid law based on jurisdiction and contract type
                 law_options = law_field.split("|")
@@ -1226,6 +1348,19 @@ OUTPUT FORMAT: Valid JSON with summary, flagged_clauses, and compliance_issues a
                 issue["law"] = self._get_default_law_for_jurisdiction(jurisdiction)
                 logger.warning(f"Invalid law field '{law_field}' replaced with '{issue['law']}'")
             
+            # Additional validation - ensure the final law is appropriate for jurisdiction
+            final_law = issue.get("law", "")
+            jurisdiction_laws = {
+                "MY": ["EMPLOYMENT_ACT_MY", "PDPA_MY"],
+                "SG": ["PDPA_SG"],
+                "EU": ["GDPR_EU"],
+                "US": ["CCPA_US"]
+            }
+            applicable_laws = jurisdiction_laws.get(jurisdiction, [])
+            
+            if final_law not in applicable_laws:
+                logger.error(f"BLOCKED in AI cleaning: Law '{final_law}' not applicable for jurisdiction '{jurisdiction}' - removing issue")
+                continue
             # Clean up generic placeholder requirements
             requirements = issue.get("missing_requirements", [])
             cleaned_requirements = []
@@ -1266,9 +1401,9 @@ OUTPUT FORMAT: Valid JSON with summary, flagged_clauses, and compliance_issues a
         """
         Select the most appropriate law from a list of options based on jurisdiction and contract context.
         """
-        # Priority mapping based on jurisdiction
+        # Priority mapping based on jurisdiction - avoid defaulting to employment law for non-employment contracts
         jurisdiction_priority = {
-            "MY": ["EMPLOYMENT_ACT_MY", "PDPA_MY"],
+            "MY": ["PDPA_MY", "EMPLOYMENT_ACT_MY"],  # PDPA first, employment law only if specifically needed
             "SG": ["PDPA_SG"],
             "EU": ["GDPR_EU"],
             "US": ["CCPA_US"]
@@ -1294,14 +1429,25 @@ OUTPUT FORMAT: Valid JSON with summary, flagged_clauses, and compliance_issues a
     def _get_default_law_for_jurisdiction(self, jurisdiction: str) -> str:
         """
         Get the default law for a given jurisdiction.
+        NEVER defaults to employment law for non-employment contracts.
         """
+        # Data protection laws are generally applicable to most contracts
+        # Employment laws should only be used for employment contracts specifically
         defaults = {
-            "MY": "EMPLOYMENT_ACT_MY",
+            "MY": "PDPA_MY",     # Changed from EMPLOYMENT_ACT_MY to prevent cross-application
             "SG": "PDPA_SG", 
             "EU": "GDPR_EU",
             "US": "CCPA_US"
         }
-        return defaults.get(jurisdiction, "EMPLOYMENT_ACT_MY")
+        
+        default_law = defaults.get(jurisdiction)
+        
+        if not default_law:
+            logger.error(f"No default law found for jurisdiction '{jurisdiction}', this indicates a configuration issue")
+            # Return None to indicate no applicable law rather than defaulting to wrong jurisdiction
+            return None
+        
+        return default_law
     
     def _is_generic_placeholder(self, text: str) -> bool:
         """
@@ -1322,27 +1468,51 @@ OUTPUT FORMAT: Valid JSON with summary, flagged_clauses, and compliance_issues a
     def _generate_specific_requirements(self, law: str, jurisdiction: str) -> List[str]:
         """
         Generate specific missing requirements based on the law.
+        Enhanced for comprehensive employment law compliance.
         """
         requirements_map = {
             "EMPLOYMENT_ACT_MY": [
-                "Contract lacks minimum termination notice periods as required by Employment Act 1955 Section 12",
-                "Missing overtime compensation provisions mandated by Employment Act 1955 Section 60A"
+                "Termination notice provisions do not meet Employment Act 1955 Section 12 minimum requirements (2 weeks for <2 years service, 4 weeks for >2 years service)",
+                "Missing overtime compensation violates Employment Act 1955 Section 60A (minimum 1.5x normal hourly rate required)",
+                "Working hours may exceed Employment Act 1955 Section 60A maximum (8 hours/day, 48 hours/week)",
+                "Annual leave entitlement below Employment Act 1955 Section 60E minimum (8-16 days based on service length)",
+                "Probation period may exceed Employment Act 1955 Section 11 maximum of 6 months",
+                "Missing rest day and public holiday provisions required under Employment Act 1955 Sections 60C, 60D",
+                "Missing EPF contribution provisions required under EPF Act 1991 (11% employee, 12-13% employer)",
+                "Missing SOCSO contribution provisions required under SOCSO Act 1969",
+                "Salary may be below minimum wage requirement of RM1,500 under Minimum Wages Order 2022"
             ],
             "PDPA_MY": [
                 "Missing explicit consent mechanisms required under Personal Data Protection Act 2010",
-                "Lacks data subject rights provisions as mandated by PDPA 2010"
+                "Lacks data subject rights provisions (access, correction, withdrawal) as mandated by PDPA 2010",
+                "Missing purpose limitation clauses required under PDPA 2010 Section 6",
+                "Insufficient data security safeguards as required under PDPA 2010 Section 7"
             ],
             "PDPA_SG": [
                 "Missing consent notification requirements under Singapore PDPA 2012",
-                "Lacks data protection officer designation as required by PDPA"
+                "Lacks data protection officer designation as required by PDPA",
+                "Missing purpose specification and limitation under PDPA 2012"
             ],
             "GDPR_EU": [
                 "Missing lawful basis for processing personal data under GDPR Article 6",
-                "Lacks data subject rights implementation as required by GDPR Articles 15-22"
+                "Lacks data subject rights implementation as required by GDPR Articles 15-22",
+                "Missing data protection impact assessment requirements under GDPR Article 35",
+                "Insufficient cross-border data transfer safeguards under GDPR Chapter V"
             ],
             "CCPA_US": [
-                "Missing consumer privacy rights disclosure under CCPA",
-                "Lacks opt-out mechanisms as required by California Consumer Privacy Act"
+                "Missing Right to Correct personal information under CCPA § 1798.106",
+                "Missing Right to Limit Use of Sensitive Personal Information under CCPA § 1798.121", 
+                "Missing Right of Non-Discrimination under CCPA § 1798.125",
+                "Discriminatory practices for opt-out requests violate CCPA § 1798.125(a)",
+                "Inadequate contact methods - CCPA § 1798.130(a)(1) requires at least 2 methods including toll-free number",
+                "Response time violations - CCPA § 1798.130(a)(2) requires initial response within 45 days",
+                "Prohibited fee structure - CCPA § 1798.130(a)(2) prohibits charging consumers for exercising rights",
+                "Service provider violations - CCPA § 1798.140(ag) restricts service provider data use",
+                "Incomplete Notice at Collection missing CCPA-specific PI categories under § 1798.100(b)",
+                "Missing data sale disclosure and opt-out requirements under CCPA § 1798.115",
+                "Missing consumer privacy rights disclosure under CCPA Section 1798.100",
+                "Lacks opt-out mechanisms as required by California Consumer Privacy Act",
+                "Missing data sale disclosure requirements under CCPA Section 1798.115"
             ]
         }
         
@@ -1351,27 +1521,49 @@ OUTPUT FORMAT: Valid JSON with summary, flagged_clauses, and compliance_issues a
     def _generate_specific_recommendations(self, law: str, jurisdiction: str) -> List[str]:
         """
         Generate specific recommendations based on the law.
+        Enhanced for comprehensive employment law compliance.
         """
         recommendations_map = {
             "EMPLOYMENT_ACT_MY": [
-                "Add termination clause with minimum 4 weeks notice for employees with >2 years service",
-                "Include overtime payment at 1.5x normal rate as mandated by Section 60A"
+                "Add termination clause specifying minimum notice periods: 2 weeks for employees with <2 years service, 4 weeks for >2 years service as per Section 12",
+                "Include overtime payment clause requiring minimum 1.5x normal hourly rate as mandated by Section 60A",
+                "Specify working hours limits: maximum 8 hours per day and 48 hours per week as per Section 60A",
+                "Include annual leave entitlement: 8 days (<2 years), 12 days (2-5 years), 16 days (>5 years) as per Section 60E",
+                "Limit probation period to maximum 6 months as required by Section 11",
+                "Add rest day provisions (1 day per week) and gazetted public holiday entitlements as per Sections 60C, 60D",
+                "Include EPF contribution clause: 11% employee contribution, 12-13% employer contribution as per EPF Act 1991",
+                "Add SOCSO contribution clause for employment injury and invalidity coverage as per SOCSO Act 1969",
+                "Ensure monthly salary meets minimum wage of RM1,500 as per Minimum Wages Order 2022"
             ],
             "PDPA_MY": [
-                "Implement clear consent procedures with opt-in mechanisms",
-                "Add data subject rights clauses covering access, correction, and withdrawal"
+                "Implement clear consent procedures with opt-in mechanisms before collecting personal data",
+                "Add comprehensive data subject rights clauses covering access, correction, and withdrawal of consent",
+                "Include purpose limitation clause specifying exact purposes for data collection and processing",
+                "Implement robust data security measures including encryption and access controls"
             ],
             "PDPA_SG": [
-                "Include notification requirements before collecting personal data",
-                "Designate data protection officer and include contact details"
+                "Include notification requirements before collecting personal data with clear purpose statements",
+                "Designate data protection officer and include contact details",
+                "Implement consent withdrawal mechanisms and data portability procedures"
             ],
             "GDPR_EU": [
-                "Establish clear lawful basis for each type of data processing",
-                "Implement comprehensive data subject rights response procedures"
+                "Establish clear lawful basis for each type of data processing under Article 6",
+                "Implement comprehensive data subject rights response procedures for Articles 15-22",
+                "Conduct data protection impact assessments for high-risk processing",
+                "Implement appropriate safeguards for international data transfers"
             ],
             "CCPA_US": [
-                "Add consumer privacy notice with clear disclosure of data practices",
-                "Implement opt-out mechanisms for data selling and sharing"
+                "Implement all required CCPA consumer rights: Right to Know, Delete, Correct, Limit Use of Sensitive PI, and Non-Discrimination",
+                "Provide at least 2 contact methods including toll-free number as required by CCPA § 1798.130(a)(1)",
+                "Ensure initial response within 45 days and total fulfillment within 90 days per CCPA § 1798.130(a)(2)",
+                "Remove all fees for consumer rights requests - CCPA prohibits charging consumers",
+                "Restrict service providers to specific business purposes only - prohibit use for their own purposes",
+                "Include comprehensive Notice at Collection with all CCPA-required PI categories and disclosures",
+                "Implement proper opt-out mechanisms for data selling under CCPA § 1798.115",
+                "Remove discriminatory practices - cannot charge fees or limit services for exercising rights",
+                "Add consumer privacy notice with clear disclosure of data practices under Section 1798.100",
+                "Implement opt-out mechanisms for data selling and sharing under Section 1798.120",
+                "Establish procedures for consumer rights requests under CCPA"
             ]
         }
         
@@ -1409,74 +1601,42 @@ OUTPUT FORMAT: Valid JSON with summary, flagged_clauses, and compliance_issues a
                                                jurisdiction: str) -> Dict[str, Any]:
         """
         Perform comprehensive contract analysis using IBM Granite-inspired legal reasoning.
-        Only flags genuine legal violations with specific statutory references.
+        Enhanced for rigorous employment contract analysis with specific statutory violations.
         """
         flagged_clauses = []
         text_lower = contract_text.lower()
         
-        # Employment contract analysis (MY jurisdiction specific)
+        # ENHANCED EMPLOYMENT CONTRACT ANALYSIS (MY jurisdiction specific)
         if metadata['type'] == 'Employment' and jurisdiction == 'MY':
             
-            # 1. Termination notice requirements (Employment Act 1955, Section 12)
-            termination_patterns = [
-                r'terminate.*without.*notice',
-                r'dismiss.*immediately',
-                r'termination.*effective.*immediately'
-            ]
+            # 1. Comprehensive Termination Analysis (Employment Act 1955, Section 12)
+            self._analyze_termination_provisions(contract_text, text_lower, flagged_clauses)
             
-            for pattern in termination_patterns:
-                matches = re.finditer(pattern, contract_text, re.IGNORECASE)
-                for match in matches:
-                    context = self._extract_clause_context(contract_text, match.start(), match.end())
-                    if 'misconduct' not in context.lower() and 'gross negligence' not in context.lower():
-                        flagged_clauses.append({
-                            "clause_text": context,
-                            "issue": "Immediate termination without notice violates Employment Act 1955 Section 12 minimum notice requirements (4 weeks for employees with >2 years service)",
-                            "severity": "high"
-                        })
-                        break  # Only flag once per contract
+            # 2. Working Hours and Overtime Analysis (Employment Act 1955, Section 60A)
+            self._analyze_working_hours_and_overtime(contract_text, text_lower, flagged_clauses)
             
-            # 2. Overtime compensation (Employment Act 1955, Section 60A)
-            if not re.search(r'overtime.*(?:compensation|payment|rate)', text_lower):
-                wage_section = re.search(r'(?:salary|wage|compensation).*?(?:\.|$)', contract_text, re.IGNORECASE | re.DOTALL)
-                if wage_section:
-                    context = wage_section.group(0)[:200] + ("..." if len(wage_section.group(0)) > 200 else "")
-                    flagged_clauses.append({
-                        "clause_text": context,
-                        "issue": "Missing overtime compensation provisions required under Employment Act 1955 Section 60A (minimum 1.5x normal rate)",
-                        "severity": "high"
-                    })
+            # 3. Annual Leave Analysis (Employment Act 1955, Section 60E)
+            self._analyze_annual_leave_provisions(contract_text, text_lower, flagged_clauses)
             
-            # 3. Annual leave entitlement (Employment Act 1955, Section 60E)
-            if not re.search(r'annual.*leave|vacation.*days?|paid.*leave', text_lower):
-                flagged_clauses.append({
-                    "clause_text": "Employment terms and conditions",
-                    "issue": "Missing annual leave entitlement violates Employment Act 1955 Section 60E (minimum 8 days for <2 years, 12 days for 2-5 years, 16 days for >5 years)",
-                    "severity": "medium"
-                })
+            # 4. Salary and Benefits Analysis (Employment Act 1955, Various Sections)
+            self._analyze_salary_and_benefits(contract_text, text_lower, flagged_clauses)
             
-            # 4. Working hours limitations (Employment Act 1955, Section 60A)
-            hours_match = re.search(r'(\d+).*hours?.*(?:per|each).*(?:day|week)', text_lower)
-            if hours_match:
-                hours = int(hours_match.group(1))
-                if 'week' in hours_match.group(0) and hours > 48:
-                    context = self._extract_clause_context(contract_text, hours_match.start(), hours_match.end())
-                    flagged_clauses.append({
-                        "clause_text": context,
-                        "issue": f"Working hours of {hours} per week exceeds Employment Act 1955 maximum of 48 hours per week",
-                        "severity": "high"
-                    })
-                elif 'day' in hours_match.group(0) and hours > 8:
-                    context = self._extract_clause_context(contract_text, hours_match.start(), hours_match.end())
-                    flagged_clauses.append({
-                        "clause_text": context,
-                        "issue": f"Working hours of {hours} per day exceeds Employment Act 1955 maximum of 8 hours per day",
-                        "severity": "high"
-                    })
+            # 5. Probation Period Analysis (Employment Act 1955, Section 11)
+            self._analyze_probation_period(contract_text, text_lower, flagged_clauses)
+            
+            # 6. Rest Day and Public Holiday Analysis (Employment Act 1955, Sections 60C, 60D)
+            self._analyze_rest_days_and_holidays(contract_text, text_lower, flagged_clauses)
+            
+            # 7. EPF and SOCSO Compliance Analysis
+            self._analyze_statutory_contributions(contract_text, text_lower, flagged_clauses)
         
         # Data protection analysis (only if contract actually processes personal data)
         if metadata['has_data_processing']:
             law_name = f"PDPA_{jurisdiction}" if jurisdiction in ['MY', 'SG'] else f"GDPR_{jurisdiction}" if jurisdiction == 'EU' else f"CCPA_{jurisdiction}"
+            
+            # Enhanced CCPA-specific flagged clause detection
+            if jurisdiction == 'US':
+                self._analyze_ccpa_clause_violations(contract_text, text_lower, flagged_clauses)
             
             # 1. Consent mechanisms
             if not re.search(r'consent.*(?:explicit|written|informed)', text_lower):
@@ -1501,16 +1661,222 @@ OUTPUT FORMAT: Valid JSON with summary, flagged_clauses, and compliance_issues a
                 })
         
         # General contract law issues
+        self._analyze_general_contract_issues(contract_text, text_lower, flagged_clauses)
+        
+        return {"flagged_clauses": flagged_clauses}
+    
+    def _analyze_termination_provisions(self, contract_text: str, text_lower: str, flagged_clauses: list):
+        """Detailed analysis of termination provisions under Employment Act 1955 Section 12"""
+        
+        # Check for immediate termination without notice (except for misconduct)
+        termination_patterns = [
+            r'terminate.*without.*notice',
+            r'dismiss.*immediately',
+            r'termination.*effective.*immediately',
+            r'end.*employment.*without.*notice'
+        ]
+        
+        for pattern in termination_patterns:
+            matches = re.finditer(pattern, contract_text, re.IGNORECASE)
+            for match in matches:
+                context = self._extract_clause_context(contract_text, match.start(), match.end())
+                if 'misconduct' not in context.lower() and 'gross negligence' not in context.lower():
+                    flagged_clauses.append({
+                        "clause_text": context,
+                        "issue": "Immediate termination without notice violates Employment Act 1955 Section 12 minimum notice requirements (4 weeks for employees with >2 years service, 2 weeks for <2 years)",
+                        "severity": "high"
+                    })
+                    break  # Only flag once per contract
+        
+        # Check for insufficient notice periods
+        notice_patterns = [
+            r'(?:notice|termination).*(?:\d+.*(?:week|month|day))',
+            r'(\d+).*?(day|week|month).*?(?:notice|termination)'
+        ]
+        
+        for pattern in notice_patterns:
+            matches = re.finditer(pattern, contract_text, re.IGNORECASE)
+            for match in matches:
+                notice_num = int(match.group(1))
+                notice_period = match.group(2).lower()
+                
+                # Convert to days for comparison
+                notice_days = notice_num
+                if notice_period == 'week':
+                    notice_days = notice_num * 7
+                elif notice_period == 'month':
+                    notice_days = notice_num * 30
+                
+                # Employment Act requires minimum 4 weeks (28 days) for >2 years service
+                if notice_days < 14:  # Less than 2 weeks is clearly insufficient
+                    context = self._extract_clause_context(contract_text, match.start(), match.end())
+                    flagged_clauses.append({
+                        "clause_text": context,
+                        "issue": f"Notice period of {notice_num} {notice_period}{'s' if notice_num > 1 else ''} may be insufficient under Employment Act 1955 Section 12 (minimum 2-4 weeks required)",
+                        "severity": "medium"
+                    })
+                    break
+    
+    def _analyze_working_hours_and_overtime(self, contract_text: str, text_lower: str, flagged_clauses: list):
+        """Detailed analysis of working hours and overtime under Employment Act 1955 Section 60A"""
+        
+        # Check for excessive working hours
+        hours_patterns = [
+            r'(\d+).*hours?.*(?:per|each).*(?:day|daily)',
+            r'(\d+).*hours?.*(?:per|each).*(?:week|weekly)',
+            r'working.*hours?.*(\d+).*(?:per|each).*(?:day|week)'
+        ]
+        
+        for pattern in hours_patterns:
+            matches = re.finditer(pattern, contract_text, re.IGNORECASE)
+            for match in matches:
+                hours = int(match.group(1))
+                period_text = match.group(0).lower()
+                
+                context = self._extract_clause_context(contract_text, match.start(), match.end())
+                
+                if ('day' in period_text or 'daily' in period_text) and hours > 8:
+                    flagged_clauses.append({
+                        "clause_text": context,
+                        "issue": f"Working hours of {hours} per day exceeds Employment Act 1955 Section 60A maximum of 8 hours per day",
+                        "severity": "high"
+                    })
+                elif ('week' in period_text or 'weekly' in period_text) and hours > 48:
+                    flagged_clauses.append({
+                        "clause_text": context,
+                        "issue": f"Working hours of {hours} per week exceeds Employment Act 1955 Section 60A maximum of 48 hours per week",
+                        "severity": "high"
+                    })
+        
+        # Check for missing overtime compensation
+        if not re.search(r'overtime.*(?:compensation|payment|rate|1\.5|time.*half)', text_lower):
+            # Look for salary/wage sections to attach this issue to
+            wage_section = re.search(r'(?:salary|wage|compensation|remuneration).*?(?:\.|;|$)', contract_text, re.IGNORECASE | re.DOTALL)
+            if wage_section:
+                context = wage_section.group(0)[:200] + ("..." if len(wage_section.group(0)) > 200 else "")
+                flagged_clauses.append({
+                    "clause_text": context,
+                    "issue": "Missing overtime compensation provisions violates Employment Act 1955 Section 60A (minimum 1.5x normal hourly rate required)",
+                    "severity": "high"
+                })
+    
+    def _analyze_annual_leave_provisions(self, contract_text: str, text_lower: str, flagged_clauses: list):
+        """Detailed analysis of annual leave under Employment Act 1955 Section 60E"""
+        
+        if not re.search(r'annual.*leave|vacation.*day|paid.*leave', text_lower):
+            flagged_clauses.append({
+                "clause_text": "Employment terms and benefits",
+                "issue": "Missing annual leave entitlement violates Employment Act 1955 Section 60E (minimum 8 days for <2 years service, 12 days for 2-5 years, 16 days for >5 years)",
+                "severity": "medium"
+            })
+        else:
+            # Check if annual leave is insufficient
+            leave_patterns = [
+                r'annual.*leave.*(\d+).*day',
+                r'vacation.*(\d+).*day',
+                r'(\d+).*day.*annual.*leave'
+            ]
+            
+            for pattern in leave_patterns:
+                matches = re.finditer(pattern, contract_text, re.IGNORECASE)
+                for match in matches:
+                    leave_days = int(match.group(1))
+                    if leave_days < 8:
+                        context = self._extract_clause_context(contract_text, match.start(), match.end())
+                        flagged_clauses.append({
+                            "clause_text": context,
+                            "issue": f"Annual leave of {leave_days} days is below Employment Act 1955 Section 60E minimum of 8 days",
+                            "severity": "medium"
+                        })
+                        break
+    
+    def _analyze_salary_and_benefits(self, contract_text: str, text_lower: str, flagged_clauses: list):
+        """Analysis of salary and benefits compliance"""
+        
+        # Check for below minimum wage (RM1,500 as of 2022)
+        salary_patterns = [
+            r'salary.*rm\s*(\d+(?:,\d+)*)',
+            r'wage.*rm\s*(\d+(?:,\d+)*)',
+            r'rm\s*(\d+(?:,\d+)*).*(?:salary|wage|month)'
+        ]
+        
+        for pattern in salary_patterns:
+            matches = re.finditer(pattern, contract_text, re.IGNORECASE)
+            for match in matches:
+                salary_str = match.group(1).replace(',', '')
+                salary_amount = int(salary_str)
+                
+                if salary_amount < 1500:
+                    context = self._extract_clause_context(contract_text, match.start(), match.end())
+                    flagged_clauses.append({
+                        "clause_text": context,
+                        "issue": f"Monthly salary of RM{salary_amount} is below the minimum wage of RM1,500 under the Minimum Wages Order 2022",
+                        "severity": "high"
+                    })
+                    break
+    
+    def _analyze_probation_period(self, contract_text: str, text_lower: str, flagged_clauses: list):
+        """Analysis of probation period under Employment Act 1955 Section 11"""
+        
+        probation_patterns = [
+            r'probation.*period.*(\d+).*month',
+            r'probationary.*(\d+).*month',
+            r'(\d+).*month.*probation'
+        ]
+        
+        for pattern in probation_patterns:
+            matches = re.finditer(pattern, contract_text, re.IGNORECASE)
+            for match in matches:
+                probation_months = int(match.group(1))
+                if probation_months > 6:
+                    context = self._extract_clause_context(contract_text, match.start(), match.end())
+                    flagged_clauses.append({
+                        "clause_text": context,
+                        "issue": f"Probation period of {probation_months} months exceeds Employment Act 1955 Section 11 maximum of 6 months",
+                        "severity": "medium"
+                    })
+                    break
+    
+    def _analyze_rest_days_and_holidays(self, contract_text: str, text_lower: str, flagged_clauses: list):
+        """Analysis of rest days and public holidays under Employment Act 1955 Sections 60C, 60D"""
+        
+        if not re.search(r'rest.*day|public.*holiday|gazetted.*holiday', text_lower):
+            flagged_clauses.append({
+                "clause_text": "Employment terms and working conditions",
+                "issue": "Missing rest day and public holiday provisions required under Employment Act 1955 Sections 60C and 60D",
+                "severity": "medium"
+            })
+    
+    def _analyze_statutory_contributions(self, contract_text: str, text_lower: str, flagged_clauses: list):
+        """Analysis of EPF and SOCSO contributions"""
+        
+        if not re.search(r'epf|employees.*provident.*fund', text_lower):
+            flagged_clauses.append({
+                "clause_text": "Employee benefits and contributions",
+                "issue": "Missing EPF (Employees Provident Fund) contribution provisions as required under EPF Act 1991",
+                "severity": "medium"
+            })
+        
+        if not re.search(r'socso|social.*security|employment.*injury', text_lower):
+            flagged_clauses.append({
+                "clause_text": "Employee benefits and contributions",
+                "issue": "Missing SOCSO (Social Security Organisation) contribution provisions as required under SOCSO Act 1969",
+                "severity": "medium"
+            })
+    
+    def _analyze_general_contract_issues(self, contract_text: str, text_lower: str, flagged_clauses: list):
+        """Analysis of general contract law issues"""
         
         # 1. Unconscionable liability limitations
-        liability_match = re.search(r'liability.*limited.*to.*(\d+)', text_lower)
+        liability_match = re.search(r'liability.*limited.*to.*(?:rm\s*)?(\d+(?:,\d+)*)', text_lower)
         if liability_match:
-            amount = int(liability_match.group(1))
+            amount_str = liability_match.group(1).replace(',', '')
+            amount = int(amount_str)
             if amount < 1000:  # Unusually low liability cap
                 context = self._extract_clause_context(contract_text, liability_match.start(), liability_match.end())
                 flagged_clauses.append({
                     "clause_text": context,
-                    "issue": f"Liability limitation of {amount} may be unconscionably low and unenforceable under contract law",
+                    "issue": f"Liability limitation of RM{amount} may be unconscionably low and unenforceable under contract law",
                     "severity": "medium"
                 })
         
@@ -1525,7 +1891,13 @@ OUTPUT FORMAT: Valid JSON with summary, flagged_clauses, and compliance_issues a
                     "severity": "medium"
                 })
         
-        return {"flagged_clauses": flagged_clauses}
+        # 3. Missing essential contract elements
+        if not re.search(r'consideration|payment|compensation|remuneration', text_lower):
+            flagged_clauses.append({
+                "clause_text": "Contract terms and conditions",
+                "issue": "Missing consideration or payment terms may affect contract enforceability under contract law",
+                "severity": "medium"
+            })
     
     def _extract_clause_context(self, contract_text: str, start_pos: int, end_pos: int, context_chars: int = 150) -> str:
         """
@@ -1546,198 +1918,559 @@ OUTPUT FORMAT: Valid JSON with summary, flagged_clauses, and compliance_issues a
         
         return context
     
-    def _is_substantive_legal_issue(self, issue: Dict[str, Any], contract_text: str) -> bool:
+    def _detect_ccpa_violations(self, contract_text: str, text_lower: str) -> tuple[List[str], List[str]]:
         """
-        Determine if an issue represents a substantive legal violation worth flagging.
-        Enhanced criteria for IBM Granite analysis.
+        Enhanced CCPA violation detection to catch specific compliance issues.
+        Returns tuple of (requirements, recommendations).
         """
-        clause_text = issue.get('clause_text', '').lower()
-        issue_description = issue.get('issue', '').lower()
-        severity = issue.get('severity', 'low')
+        requirements = []
+        recommendations = []
         
-        # Skip if clause text is too generic or short
-        if len(clause_text.strip()) < 20:
-            return False
+        logger.info("Starting comprehensive CCPA violation detection")
         
-        # Skip if it's likely metadata or formatting
-        metadata_indicators = [
-            'summary', 'analysis', 'review', 'overview', 'title', 'header',
-            'created by', 'generated by', 'document', 'version'
+        # 1. CRITICAL: Missing Required Consumer Rights (§ 1798.100 et seq.)
+        missing_rights = []
+        
+        # Right to Correct (§ 1798.106)
+        if not re.search(r'right\s+to\s+correct|correct.*personal.*information|rectif', text_lower):
+            missing_rights.append("Right to Correct personal information")
+        
+        # Right to Limit Use of Sensitive Personal Information (§ 1798.121)
+        if not re.search(r'limit.*use.*sensitive|sensitive.*personal.*information.*limit|opt.*out.*sensitive', text_lower):
+            missing_rights.append("Right to Limit Use of Sensitive Personal Information")
+        
+        # Right of Non-Discrimination (§ 1798.125)
+        if not re.search(r'non.*discrimination|right.*not.*discriminate|equal.*treatment', text_lower):
+            missing_rights.append("Right of Non-Discrimination")
+        
+        if missing_rights:
+            requirements.append(f"Missing critical CCPA consumer rights: {', '.join(missing_rights)} under CCPA §§ 1798.100-1798.125")
+            recommendations.append(f"Implement all required consumer rights: {', '.join(missing_rights)} as mandated by CCPA")
+        
+        # 2. CRITICAL: Explicit Discrimination Violation (§ 1798.125)
+        discrimination_violations = []
+        
+        # Check for prohibited fee structures when opting out
+        if re.search(r'opt.*out.*(?:may|will|result).*(?:additional|extra).*fee|fee.*opt.*out|charge.*opt.*out', text_lower):
+            discrimination_violations.append("Charging fees for opt-out requests (§ 1798.125(a)(1))")
+        
+        # Check for service limitations tied to opt-out
+        if re.search(r'opt.*out.*(?:may|will).*limit.*service|service.*limited.*opt.*out', text_lower):
+            discrimination_violations.append("Limiting services for opt-out requests (§ 1798.125(a)(2))")
+        
+        if discrimination_violations:
+            requirements.append(f"CRITICAL DISCRIMINATION VIOLATIONS: {', '.join(discrimination_violations)}")
+            recommendations.append("Remove all discriminatory practices - CCPA § 1798.125 strictly prohibits charging fees or limiting services for exercising consumer rights")
+        
+        # 3. HIGH PRIORITY: Inadequate Contact Methods (§ 1798.130(a)(1))
+        contact_methods = []
+        
+        # Check for toll-free number
+        if re.search(r'toll.*free|1.*800.*|1.*888.*|1.*877.*|1.*866.*', text_lower):
+            contact_methods.append("toll-free")
+        
+        # Check for website
+        if re.search(r'website|online.*form|web.*form|www\.|http', text_lower):
+            contact_methods.append("website")
+        
+        # Check for email
+        if re.search(r'email|@.*\.com|contact.*email', text_lower):
+            contact_methods.append("email")
+        
+        # Check for postal address
+        if re.search(r'mail.*address|postal.*address|mailing.*address|street.*address', text_lower):
+            contact_methods.append("postal")
+        
+        if len(contact_methods) < 2:
+            # Extract a reasonable portion of the contact section
+            contact_excerpt = text_lower[:300] + ("..." if len(text_lower) > 300 else "")
+            requirements.append(f"Inadequate contact methods for consumer requests - only {len(contact_methods)} method(s) provided, CCPA § 1798.130(a)(1) requires at least 2 methods including toll-free number")
+            recommendations.append("Provide at least 2 contact methods including toll-free number: phone, website, email, or postal address")
+        
+        # 4. MEDIUM PRIORITY: Response time violations (§ 1798.130(a)(2))
+        response_time_violations = []
+        
+        # Check for response times over 45 days initial response
+        response_matches = re.finditer(r'respond.*within.*(\d+).*days?|(\d+).*days?.*respond', text_lower)
+        for match in response_matches:
+            days = int(match.group(1) or match.group(2))
+            if days > 45:
+                response_time_violations.append(f"Initial response time of {days} days exceeds CCPA § 1798.130(a)(2) maximum of 45 days")
+        
+        # Check for total fulfillment time over 90 days
+        fulfillment_matches = re.finditer(r'fulfill.*within.*(\d+).*days?|complete.*within.*(\d+).*days?', text_lower)
+        for match in fulfillment_matches:
+            days = int(match.group(1) or match.group(2))
+            if days > 90:
+                response_time_violations.append(f"Total fulfillment time of {days} days exceeds CCPA maximum of 90 days (45 + 45 extension)")
+        
+        if response_time_violations:
+            requirements.append(f"Response time violations: {', '.join(response_time_violations)}")
+            recommendations.append("Comply with CCPA § 1798.130(a)(2): initial response within 45 days, total fulfillment within 90 days maximum")
+        
+        # 5. HIGH PRIORITY: Prohibited fee structures (§ 1798.130(a)(2))
+        fee_violations = []
+        
+        # Check for verification fees
+        if re.search(r'verification.*fee|fee.*verification|charge.*verify|verification.*cost', text_lower):
+            fee_violations.append("Charging verification fees")
+        
+        # Check for processing fees
+        if re.search(r'processing.*fee|fee.*processing|charge.*process.*request', text_lower):
+            fee_violations.append("Charging processing fees")
+        
+        # Check for any consumer request fees
+        if re.search(r'fee.*consumer.*request|charge.*consumer.*right|cost.*exercise.*right', text_lower):
+            fee_violations.append("Charging fees for exercising consumer rights")
+        
+        if fee_violations:
+            requirements.append(f"PROHIBITED FEE STRUCTURE: {', '.join(fee_violations)} - CCPA § 1798.130(a)(2) prohibits charging consumers for exercising their rights")
+            recommendations.append("Remove all fees associated with consumer rights requests - CCPA prohibits charging consumers")
+        
+        # 6. CRITICAL: Service Provider Contract Violations (§ 1798.140(ag))
+        service_provider_violations = []
+        
+        # Check if service providers can use data for own purposes
+        if re.search(r'service.*provider.*(?:can|may|use).*(?:own|their).*purpose|vendor.*use.*own.*business', text_lower):
+            service_provider_violations.append("Allowing service providers to use data for their own business purposes")
+        
+        # Check if service providers can sell/share data
+        if re.search(r'service.*provider.*(?:sell|share).*data|vendor.*sell.*data|third.*party.*sell', text_lower):
+            service_provider_violations.append("Allowing service providers to sell or share personal information")
+        
+        # Check for lack of service provider restrictions
+        if re.search(r'service.*provider|vendor|third.*party', text_lower) and not re.search(r'service.*provider.*(?:shall|must|limited|restrict)', text_lower):
+            service_provider_violations.append("Missing service provider restrictions and oversight requirements")
+        
+        if service_provider_violations:
+            requirements.append(f"SERVICE PROVIDER VIOLATIONS: {', '.join(service_provider_violations)} - violates CCPA § 1798.140(ag) service provider definition")
+            recommendations.append("Restrict service providers to specific business purposes only - prohibit use for their own purposes and selling/sharing data")
+        
+        # 7. HIGH PRIORITY: Incomplete Notice at Collection (§ 1798.100(b))
+        notice_violations = []
+        
+        # Check for specific CCPA PI categories
+        ccpa_categories = [
+            'identifiers', 'commercial information', 'biometric information', 
+            'internet activity', 'geolocation data', 'sensory data', 
+            'professional information', 'education information', 'inferences'
+        ]
+        categories_mentioned = sum(1 for cat in ccpa_categories if cat.replace(' ', '.*') in text_lower)
+        
+        if categories_mentioned < 3:
+            notice_violations.append(f"Missing CCPA-specific personal information categories (only {categories_mentioned}/9 mentioned)")
+        
+        # Check for retention periods
+        if not re.search(r'retention.*period|retain.*for|keep.*for.*year|delete.*after', text_lower):
+            notice_violations.append("Missing retention period disclosure")
+        
+        # Check for source disclosure
+        if not re.search(r'source.*information|collect.*from|obtain.*from|gather.*from', text_lower):
+            notice_violations.append("Missing source of information disclosure")
+        
+        # Check for third party categories
+        if not re.search(r'third.*part.*categor|share.*with.*type|disclose.*to.*categor', text_lower):
+            notice_violations.append("Missing third party categories disclosure")
+        
+        if notice_violations:
+            requirements.append(f"Incomplete Notice at Collection under CCPA § 1798.100(b): {', '.join(notice_violations)}")
+            recommendations.append("Complete Notice at Collection with all CCPA-required elements: specific PI categories, retention periods, sources, and third party categories")
+        
+        # 8. Additional CCPA-specific checks
+        additional_violations = []
+        
+        # Check for proper data sale disclosure (§ 1798.115)
+        if re.search(r'sell.*data|sale.*personal.*information|sell.*personal', text_lower):
+            if not re.search(r'opt.*out|do.*not.*sell', text_lower):
+                additional_violations.append("Data sale disclosed but missing required opt-out notice under § 1798.115")
+        
+        # Check for sensitive PI handling (§ 1798.121)
+        sensitive_terms = ['health', 'biometric', 'genetic', 'precise geolocation', 'racial', 'religious', 'sexual orientation']
+        if any(term in text_lower for term in sensitive_terms):
+            if not re.search(r'sensitive.*personal.*information|limit.*use.*sensitive', text_lower):
+                additional_violations.append("Handling sensitive personal information without proper CCPA § 1798.121 disclosures")
+        
+        if additional_violations:
+            requirements.extend(additional_violations)
+            recommendations.append("Address all CCPA-specific disclosure and handling requirements for data sales and sensitive personal information")
+        
+        logger.info(f"CCPA violation detection complete: {len(requirements)} violations found")
+        return requirements, recommendations
+    
+    def _analyze_ccpa_clause_violations(self, contract_text: str, text_lower: str, flagged_clauses: list):
+        """
+        Analyze specific clauses that violate CCPA requirements.
+        Extract exact clause text that contains violations.
+        """
+        # 1. CRITICAL: Detect discrimination clauses (§ 1798.125)
+        discrimination_patterns = [
+            r'opt.*out.*(?:may|will|result).*(?:additional|extra).*fee[^.]*\.',
+            r'opt.*out.*(?:may|will).*limit.*service[^.]*\.',
+            r'(?:additional|extra).*fee.*opt.*out[^.]*\.',
+            r'service.*limited.*opt.*out[^.]*\.'
         ]
         
-        if any(indicator in clause_text for indicator in metadata_indicators):
-            return False
+        for pattern in discrimination_patterns:
+            matches = re.finditer(pattern, contract_text, re.IGNORECASE | re.DOTALL)
+            for match in matches:
+                clause_text = match.group(0).strip()
+                if len(clause_text) > 20:  # Ensure substantial content
+                    flagged_clauses.append({
+                        "clause_text": clause_text,
+                        "issue": "CRITICAL CCPA VIOLATION: Discriminatory practice for exercising opt-out rights violates CCPA § 1798.125",
+                        "severity": "high"
+                    })
         
-        # Only flag high and medium severity issues for critical analysis
-        if severity not in ['high', 'medium']:
-            return False
-        
-        # Ensure the issue is specific and actionable
-        vague_issues = [
-            'may not comply', 'might be insufficient', 'could be problematic',
-            'appears to lack', 'seems to be missing'
+        # 2. HIGH PRIORITY: Service provider violations (§ 1798.140(ag))
+        service_provider_patterns = [
+            r'service.*provider.*(?:can|may|use).*(?:own|their).*purpose[^.]*\.',
+            r'vendor.*use.*own.*business[^.]*\.',
+            r'service.*provider.*(?:sell|share).*data[^.]*\.',
+            r'third.*party.*sell.*data[^.]*\.'
         ]
         
-        if any(vague in issue_description for vague in vague_issues):
-            return False
+        for pattern in service_provider_patterns:
+            matches = re.finditer(pattern, contract_text, re.IGNORECASE | re.DOTALL)
+            for match in matches:
+                clause_text = match.group(0).strip()
+                if len(clause_text) > 20:
+                    flagged_clauses.append({
+                        "clause_text": clause_text,
+                        "issue": "SERVICE PROVIDER VIOLATION: Allowing service providers to use data for own purposes violates CCPA § 1798.140(ag)",
+                        "severity": "high"
+                    })
         
-        # Issue must reference specific law or regulation
-        law_references = [
-            'employment act', 'pdpa', 'gdpr', 'ccpa', 'section', 'regulation',
-            'statutory', 'mandatory', 'required under'
+        # 3. HIGH PRIORITY: Prohibited fee structures (§ 1798.130(a)(2))
+        fee_patterns = [
+            r'verification.*fee[^.]*\.',
+            r'fee.*verification[^.]*\.',
+            r'processing.*fee.*request[^.]*\.',
+            r'charge.*verify[^.]*\.',
+            r'cost.*exercise.*right[^.]*\.'
         ]
         
-        if not any(ref in issue_description for ref in law_references):
-            return False
+        for pattern in fee_patterns:
+            matches = re.finditer(pattern, contract_text, re.IGNORECASE | re.DOTALL)
+            for match in matches:
+                clause_text = match.group(0).strip()
+                if len(clause_text) > 20:
+                    flagged_clauses.append({
+                        "clause_text": clause_text,
+                        "issue": "PROHIBITED FEE STRUCTURE: Charging fees for consumer rights requests violates CCPA § 1798.130(a)(2)",
+                        "severity": "high"
+                    })
         
-        return True
+        # 4. MEDIUM PRIORITY: Response time violations (§ 1798.130(a)(2))
+        response_time_patterns = [
+            r'respond.*within.*(\d+).*days?[^.]*\.',
+            r'(\d+).*days?.*respond.*request[^.]*\.'
+        ]
+        
+        for pattern in response_time_patterns:
+            matches = re.finditer(pattern, contract_text, re.IGNORECASE | re.DOTALL)
+            for match in matches:
+                clause_text = match.group(0).strip()
+                days_match = re.search(r'(\d+)', clause_text)
+                if days_match and int(days_match.group(1)) > 45:
+                    flagged_clauses.append({
+                        "clause_text": clause_text,
+                        "issue": f"RESPONSE TIME VIOLATION: {days_match.group(1)} days exceeds CCPA § 1798.130(a)(2) maximum of 45 days",
+                        "severity": "medium"
+                    })
+        
+        # 5. MEDIUM PRIORITY: Contact method violations (§ 1798.130)
+        # Check entire contact section for inadequate methods
+        contact_section_pattern = r'(?:how.*to.*exercise|contact.*us|exercise.*rights)[\s\S]*?(?=\n\s*#{1,6}|\n\s*\*\*|$)'
+        contact_match = re.search(contact_section_pattern, contract_text, re.IGNORECASE)
+        
+        if contact_match:
+            contact_section = contact_match.group(0)
+            contact_methods = 0
+            
+            if re.search(r'toll.*free|1.*800.*|1.*888.*|1.*877.*|1.*866.*', contact_section, re.IGNORECASE):
+                contact_methods += 1
+            if re.search(r'website|online.*form|web.*form|www\.|http', contact_section, re.IGNORECASE):
+                contact_methods += 1
+            if re.search(r'email|@.*\.com', contact_section, re.IGNORECASE):
+                contact_methods += 1
+            if re.search(r'mail.*address|postal.*address|mailing.*address|street.*address', contact_section, re.IGNORECASE):
+                contact_methods += 1
+            
+            if contact_methods < 2:
+                # Extract a reasonable portion of the contact section
+                contact_excerpt = contact_section[:300] + ("..." if len(contact_section) > 300 else "")
+                flagged_clauses.append({
+                    "clause_text": contact_excerpt,
+                    "issue": f"INADEQUATE CONTACT METHODS: Only {contact_methods} method(s) provided, CCPA § 1798.130(a)(1) requires at least 2 methods",
+                    "severity": "medium"
+                })
+        
+        # 6. CRITICAL: Data sale without proper opt-out (§ 1798.115)
+        data_sale_pattern = r'(?:sell.*personal.*information|sale.*personal.*data)(?:(?!opt.*out|do.*not.*sell).)*[^.]*\.'
+        matches = re.finditer(data_sale_pattern, contract_text, re.IGNORECASE | re.DOTALL)
+        for match in matches:
+            clause_text = match.group(0).strip()
+            if len(clause_text) > 20 and not re.search(r'opt.*out|do.*not.*sell', clause_text, re.IGNORECASE):
+                flagged_clauses.append({
+                    "clause_text": clause_text,
+                    "issue": "DATA SALE VIOLATION: Personal information sale disclosed without required opt-out notice under CCPA § 1798.115",
+                    "severity": "high"
+                })
+        
+        logger.info(f"CCPA clause analysis complete: {len([c for c in flagged_clauses if 'CCPA' in c.get('issue', '')])} CCPA-specific violations flagged")
+    
+    def _validate_compliance_issues(self, compliance_issues: List[Dict[str, Any]], jurisdiction: str) -> List[Dict[str, Any]]:
+        """
+        Validate and filter compliance issues to ensure they are appropriate for the jurisdiction.
+        """
+        validated_issues = []
+        
+        jurisdiction_laws = {
+            "MY": ["EMPLOYMENT_ACT_MY", "PDPA_MY"],
+            "SG": ["PDPA_SG"],
+            "EU": ["GDPR_EU"],
+            "US": ["CCPA_US"]
+        }
+        
+        applicable_laws = jurisdiction_laws.get(jurisdiction, [])
+        
+        for issue in compliance_issues:
+            law = issue.get('law', '')
+            
+            # Ensure law is applicable to jurisdiction
+            if law not in applicable_laws:
+                logger.warning(f"Filtering out inapplicable law '{law}' for jurisdiction '{jurisdiction}'")
+                continue
+            
+            # Ensure issue has required fields
+            if not issue.get('missing_requirements'):
+                logger.warning(f"Filtering out compliance issue with no missing requirements: {law}")
+                continue
+            
+            if not issue.get('recommendations'):
+                logger.warning(f"Filtering out compliance issue with no recommendations: {law}")
+                continue
+            
+            # Filter out empty or placeholder requirements
+            valid_requirements = [
+                req for req in issue.get('missing_requirements', [])
+                if req and len(req.strip()) > 10 and not self._is_generic_placeholder(req)
+            ]
+            
+            valid_recommendations = [
+                rec for rec in issue.get('recommendations', [])
+                if rec and len(rec.strip()) > 10 and not self._is_generic_placeholder(rec)
+            ]
+            
+            if valid_requirements and valid_recommendations:
+                issue['missing_requirements'] = valid_requirements
+                issue['recommendations'] = valid_recommendations
+                validated_issues.append(issue)
+            else:
+                logger.warning(f"Filtering out compliance issue with insufficient detail: {law}")
+        
+        logger.info(f"Validated {len(validated_issues)}/{len(compliance_issues)} compliance issues")
+        return validated_issues
     
     def _apply_critical_legal_analysis(self, flagged_clauses: List[Dict[str, Any]], 
                                      metadata: Dict[str, Any], jurisdiction: str) -> List[Dict[str, Any]]:
         """
-        Apply critical legal analysis to filter only genuine violations.
-        Designed for IBM Granite model compatibility.
+        Apply critical legal analysis to prioritize only the most serious violations.
+        Enhanced for jurisdiction-specific filtering.
         """
-        filtered_clauses = []
+        critical_clauses = []
         
+        # Priority scoring based on severity and legal significance
         for clause in flagged_clauses:
-            # Only include clauses that meet strict legal criteria
-            if self._meets_granite_legal_standards(clause, metadata, jurisdiction):
-                filtered_clauses.append(clause)
+            severity = clause.get('severity', 'low')
+            issue = clause.get('issue', '')
+            
+            # Calculate priority score
+            priority_score = 0
+            
+            # Severity weighting
+            if severity == 'high':
+                priority_score += 10
+            elif severity == 'medium':
+                priority_score += 5
+            else:
+                priority_score += 1
+            
+            # Legal significance indicators
+            critical_indicators = [
+                'violation', 'violates', 'prohibited', 'critical', 'mandatory',
+                'statutory', 'criminal', 'penalty', 'fine', 'breach', 'illegal',
+                'non-compliance', 'contravenes', 'discrimination'
+            ]
+            
+            issue_lower = issue.lower()
+            for indicator in critical_indicators:
+                if indicator in issue_lower:
+                    priority_score += 3
+            
+            # Jurisdiction-specific critical issues
+            if jurisdiction == 'US':
+                ccpa_critical = ['discrimination', 'fee', 'service provider', 'response time']
+                for critical_term in ccpa_critical:
+                    if critical_term in issue_lower:
+                        priority_score += 5
+            elif jurisdiction == 'MY':
+                employment_critical = ['termination', 'overtime', 'working hours', 'minimum wage']
+                for critical_term in employment_critical:
+                    if critical_term in issue_lower:
+                        priority_score += 5
+            
+            # Only include clauses that meet minimum priority threshold
+            if priority_score >= 8:  # High priority threshold
+                clause['priority_score'] = priority_score
+                critical_clauses.append(clause)
+            else:
+                logger.debug(f"Filtered out low-priority clause (score: {priority_score}): {issue[:50]}...")
         
-        # Limit to maximum 5 most critical issues to avoid information overload
-        # Sort by severity and specificity
-        severity_order = {'high': 3, 'medium': 2, 'low': 1}
-        filtered_clauses.sort(
-            key=lambda x: (
-                severity_order.get(x.get('severity', 'low'), 1),
-                len(x.get('issue', ''))  # More detailed issues first
-            ),
-            reverse=True
-        )
+        # Sort by priority score and limit to most critical issues
+        critical_clauses.sort(key=lambda x: x.get('priority_score', 0), reverse=True)
         
-        return filtered_clauses[:5]  # Maximum 5 issues
-    
-    def _meets_granite_legal_standards(self, clause: Dict[str, Any], 
-                                     metadata: Dict[str, Any], jurisdiction: str) -> bool:
-        """
-        Check if a flagged clause meets IBM Granite model's legal analysis standards.
-        """
-        issue_text = clause.get('issue', '').lower()
-        severity = clause.get('severity', 'low')
+        # Limit to top 10 most critical issues to avoid overwhelming the user
+        critical_clauses = critical_clauses[:10]
         
-        # Must be high or medium severity
-        if severity not in ['high', 'medium']:
-            return False
-        
-        # Must reference specific legal requirements
-        specific_legal_refs = [
-            'employment act 1955',
-            'section 12', 'section 60a', 'section 60e',
-            'pdpa', 'gdpr', 'ccpa',
-            'minimum notice', 'overtime rate', 'annual leave',
-            'explicit consent', 'data subject rights'
-        ]
-        
-        if not any(ref in issue_text for ref in specific_legal_refs):
-            return False
-        
-        # Issue must be contextually relevant to contract type
-        if metadata['type'] == 'Employment':
-            employment_issues = ['employment act', 'notice', 'overtime', 'leave', 'hours']
-            if not any(emp_issue in issue_text for emp_issue in employment_issues):
-                return False
-        
-        if metadata['has_data_processing']:
-            data_issues = ['consent', 'data subject', 'privacy', 'personal data']
-            if 'data' in issue_text and not any(data_issue in issue_text for data_issue in data_issues):
-                return False
-        
-        return True
+        logger.info(f"Critical legal analysis: {len(critical_clauses)}/{len(flagged_clauses)} clauses passed priority filter")
+        return critical_clauses
     
     def _enhance_granite_response(self, granite_response: str, contract_text: str, 
-                                metadata: Dict[str, Any], jurisdiction: str) -> str:
+                                 metadata: Dict[str, Any], jurisdiction: str) -> str:
         """
-        Enhance minimal IBM Granite responses with domain expertise for better legal analysis.
+        Enhance a minimal Granite response by combining it with domain expertise.
         """
         try:
-            # Try to parse existing Granite response
-            granite_data = json.loads(granite_response)
-        except:
-            # If parsing fails, start fresh with intelligent analysis
-            return self._get_intelligent_mock_analysis(contract_text, metadata, {}, jurisdiction)
+            # Parse existing Granite response
+            granite_json = json.loads(granite_response)
+        except json.JSONDecodeError:
+            logger.warning("Could not parse Granite response, creating new analysis")
+            granite_json = {"summary": "", "flagged_clauses": [], "compliance_issues": []}
         
-        # Get comprehensive analysis from our domain expertise
-        comprehensive_analysis = self._perform_comprehensive_contract_analysis(
-            contract_text, metadata, jurisdiction
+        # Get our intelligent analysis to supplement Granite
+        intelligent_analysis = self._get_intelligent_mock_analysis(
+            contract_text, metadata, {}, jurisdiction
         )
         
-        # Merge Granite insights with our analysis
-        enhanced_flagged_clauses = granite_data.get('flagged_clauses', [])
+        try:
+            intelligent_json = json.loads(intelligent_analysis)
+        except json.JSONDecodeError:
+            logger.error("Could not parse intelligent analysis")
+            return granite_response
         
-        # Add our domain-specific findings if they're not already covered
-        for clause in comprehensive_analysis.get('flagged_clauses', []):
-            if not any(clause['issue'] in existing['issue'] for existing in enhanced_flagged_clauses):
-                enhanced_flagged_clauses.append(clause)
+        # Merge the analyses - prefer Granite's results but supplement with ours
+        merged_flagged = list(granite_json.get("flagged_clauses", []))
+        merged_compliance = list(granite_json.get("compliance_issues", []))
         
-        # Generate enhanced compliance issues
-        enhanced_compliance_issues = granite_data.get('compliance_issues', [])
-        smart_issues = self._generate_smart_compliance_issues(contract_text, metadata, jurisdiction)
+        # Add our flagged clauses if Granite didn't find enough
+        if len(merged_flagged) < 3:
+            for clause in intelligent_json.get("flagged_clauses", []):
+                # Avoid duplicates
+                clause_text = clause.get("clause_text", "")
+                if not any(clause_text in existing.get("clause_text", "") for existing in merged_flagged):
+                    merged_flagged.append(clause)
+                    if len(merged_flagged) >= 5:  # Limit total flagged clauses
+                        break
         
-        for issue in smart_issues:
-            if not any(issue['law'] == existing['law'] for existing in enhanced_compliance_issues):
-                enhanced_compliance_issues.append(issue)
+        # Add our compliance issues if Granite didn't find enough
+        if len(merged_compliance) < 2:
+            for issue in intelligent_json.get("compliance_issues", []):
+                # Avoid duplicates by law type
+                law = issue.get("law", "")
+                if not any(law == existing.get("law", "") for existing in merged_compliance):
+                    merged_compliance.append(issue)
         
-        # Generate comprehensive summary
-        enhanced_summary = self._generate_contextual_summary(
-            enhanced_flagged_clauses, enhanced_compliance_issues, metadata, jurisdiction
+        # Create enhanced summary
+        enhanced_summary = self._create_enhanced_summary(
+            granite_json.get("summary", ""), intelligent_json.get("summary", ""),
+            len(merged_flagged), len(merged_compliance), metadata, jurisdiction
         )
         
-        return json.dumps({
+        enhanced_response = {
             "summary": enhanced_summary,
-            "flagged_clauses": enhanced_flagged_clauses[:5],  # Limit for focus
-            "compliance_issues": enhanced_compliance_issues
-        })
+            "flagged_clauses": merged_flagged[:10],  # Limit to top 10
+            "compliance_issues": merged_compliance[:5]  # Limit to top 5
+        }
+        
+        logger.info(f"Enhanced Granite response: {len(merged_flagged)} flagged clauses, {len(merged_compliance)} compliance issues")
+        return json.dumps(enhanced_response)
     
-    def _validate_compliance_issues(self, compliance_issues: List[Dict[str, Any]], jurisdiction: str) -> List[Dict[str, Any]]:
+    def _create_enhanced_summary(self, granite_summary: str, intelligent_summary: str,
+                                flagged_count: int, compliance_count: int,
+                                metadata: Dict[str, Any], jurisdiction: str) -> str:
         """
-        Validate and clean compliance issues to ensure proper structure and prevent malformed data.
+        Create an enhanced summary combining Granite and intelligent analysis.
         """
-        validated_issues = []
-        valid_laws = ["EMPLOYMENT_ACT_MY", "PDPA_MY", "PDPA_SG", "GDPR_EU", "CCPA_US"]
+        jurisdiction_name = {
+            "MY": "Malaysia", "SG": "Singapore", "EU": "European Union", "US": "United States"
+        }.get(jurisdiction, jurisdiction)
         
-        for issue in compliance_issues:
-            # Validate law field
-            law = issue.get("law", "")
-            if not law or law not in valid_laws:
-                logger.warning(f"Invalid law field '{law}', setting default for jurisdiction {jurisdiction}")
-                issue["law"] = self._get_default_law_for_jurisdiction(jurisdiction)
-            
-            # Validate missing_requirements
-            requirements = issue.get("missing_requirements", [])
-            if not requirements or not isinstance(requirements, list):
-                issue["missing_requirements"] = self._generate_specific_requirements(issue["law"], jurisdiction)
-            else:
-                # Clean generic placeholders
-                cleaned_reqs = [req for req in requirements if not self._is_generic_placeholder(req)]
-                if not cleaned_reqs:
-                    issue["missing_requirements"] = self._generate_specific_requirements(issue["law"], jurisdiction)
-                else:
-                    issue["missing_requirements"] = cleaned_reqs
-            
-            # Validate recommendations
-            recommendations = issue.get("recommendations", [])
-            if not recommendations or not isinstance(recommendations, list):
-                issue["recommendations"] = self._generate_specific_recommendations(issue["law"], jurisdiction)
-            else:
-                # Clean generic placeholders
-                cleaned_recs = [rec for rec in recommendations if not self._is_generic_placeholder(rec)]
-                if not cleaned_recs:
-                    issue["recommendations"] = self._generate_specific_recommendations(issue["law"], jurisdiction)
-                else:
-                    issue["recommendations"] = cleaned_recs
-            
-            validated_issues.append(issue)
+        # Use Granite summary if substantial, otherwise use intelligent summary
+        base_summary = granite_summary if len(granite_summary) > 50 else intelligent_summary
         
-        logger.info(f"Validated {len(validated_issues)} compliance issues")
-        return validated_issues
+        # If both are minimal, create our own
+        if len(base_summary) < 50:
+            total_issues = flagged_count + compliance_count
+            contract_type = metadata.get('type', 'contract')
+            
+            if total_issues == 0:
+                base_summary = f"Analysis of this {contract_type.lower()} for {jurisdiction_name} compliance found no critical issues requiring immediate attention."
+            elif total_issues >= 5:
+                base_summary = f"This {contract_type.lower()} contains {total_issues} compliance concerns for {jurisdiction_name} jurisdiction requiring legal review."
+            else:
+                base_summary = f"This {contract_type.lower()} has {total_issues} moderate compliance issues for {jurisdiction_name} jurisdiction."
+        
+        return base_summary
+    
+    def _is_substantive_legal_issue(self, issue: Dict[str, Any], contract_text: str) -> bool:
+        """
+        Determine if a flagged issue represents a substantive legal concern.
+        """
+        issue_text = issue.get('issue', '')
+        clause_text = issue.get('clause_text', '')
+        severity = issue.get('severity', 'low')
+        
+        # Always include high severity issues
+        if severity == 'high':
+            return True
+        
+        # Filter out generic or non-specific issues
+        generic_indicators = [
+            'review recommended', 'consider adding', 'may want to include',
+            'formatting issue', 'style concern', 'minor adjustment',
+            'cosmetic change', 'presentation'
+        ]
+        
+        issue_lower = issue_text.lower()
+        if any(indicator in issue_lower for indicator in generic_indicators):
+            return False
+        
+        # Require legal significance indicators
+        legal_significance = [
+            'violates', 'violation', 'non-compliance', 'prohibited', 'illegal',
+            'breach', 'contravenes', 'mandatory', 'required by law', 'statutory',
+            'regulation', 'act', 'section', 'article', 'code', 'ordinance'
+        ]
+        
+        if any(indicator in issue_lower for indicator in legal_significance):
+            return True
+        
+        # Check if clause text appears to be substantive contract content
+        if len(clause_text) > 30 and self._is_substantive_clause(clause_text):
+            return True
+        
+        # Medium severity issues need additional validation
+        if severity == 'medium':
+            # Must reference specific legal concepts
+            legal_concepts = [
+                'liability', 'damages', 'termination', 'breach', 'warranty',
+                'indemnification', 'jurisdiction', 'governing law', 'arbitration',
+                'intellectual property', 'confidentiality', 'non-disclosure'
+            ]
+            
+            combined_text = (issue_text + ' ' + clause_text).lower()
+            return any(concept in combined_text for concept in legal_concepts)
+        
+        # Low severity issues are generally filtered out unless very specific
+        return False

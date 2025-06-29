@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { Brain, FileText, AlertCircle, CheckCircle, Loader2, MessageSquare, Shield, Lightbulb } from 'lucide-react';
+import { Brain, FileText, AlertCircle, CheckCircle, Loader2, MessageSquare, Shield, Lightbulb, TrendingUp } from 'lucide-react';
 import Header from '../components/layout/Header';
 import { aiInsightsService } from '../services/aiInsightsService';
 import type { DocumentSummaryResponse, ClauseExplanationResponse } from '../services/aiInsightsService';
+
+type SummaryType = 'plain_language' | 'executive' | 'risks';
 
 export default function AIInsights() {
     const [activeTab, setActiveTab] = useState<'summarize' | 'explain'>('summarize');
     const [documentText, setDocumentText] = useState('');
     const [clauseText, setClauseText] = useState('');
+    const [summaryType, setSummaryType] = useState<SummaryType>('plain_language');
     const [summaryResult, setSummaryResult] = useState<DocumentSummaryResponse | null>(null);
     const [clauseResult, setClauseResult] = useState<ClauseExplanationResponse | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -26,7 +29,7 @@ export default function AIInsights() {
         try {
             const result = await aiInsightsService.summarizeDocument({
                 text: documentText,
-                summary_type: 'plain_language'
+                summary_type: summaryType
             });
             setSummaryResult(result);
         } catch (err: any) {
@@ -37,6 +40,32 @@ export default function AIInsights() {
             }
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const getSummaryTypeInfo = (type: SummaryType) => {
+        switch (type) {
+            case 'plain_language':
+                return {
+                    title: 'Plain Language',
+                    description: 'Easy-to-understand summary in everyday English',
+                    icon: MessageSquare,
+                    color: 'text-blue-400'
+                };
+            case 'executive':
+                return {
+                    title: 'Executive Summary',
+                    description: 'Business-focused analysis for decision makers',
+                    icon: TrendingUp,
+                    color: 'text-purple-400'
+                };
+            case 'risks':
+                return {
+                    title: 'Risk Analysis',
+                    description: 'Identify potential problems and legal risks',
+                    icon: AlertCircle,
+                    color: 'text-red-400'
+                };
         }
     };
 
@@ -144,8 +173,45 @@ export default function AIInsights() {
                     <div className="grid lg:grid-cols-2 gap-8">
                         {/* Input Section */}
                         <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
-                            <h3 className="text-xl font-semibold text-blue-300 mb-4">Document Text</h3>
-                            <div className="space-y-4">
+                            <h3 className="text-xl font-semibold text-blue-300 mb-6">Document Text</h3>
+                            <div className="space-y-6">
+                                {/* Summary Type Selector */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-3">
+                                        Choose Summary Type
+                                    </label>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {(['plain_language', 'executive', 'risks'] as SummaryType[]).map((type) => {
+                                            const typeInfo = getSummaryTypeInfo(type);
+                                            const IconComponent = typeInfo.icon;
+                                            return (
+                                                <button
+                                                    key={type}
+                                                    onClick={() => setSummaryType(type)}
+                                                    className={`p-4 rounded-lg border-2 transition-all duration-200 text-left ${
+                                                        summaryType === type
+                                                            ? 'border-blue-500 bg-blue-900/20'
+                                                            : 'border-slate-600 bg-slate-900 hover:border-slate-500'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <IconComponent className={`w-5 h-5 ${typeInfo.color}`} />
+                                                        <div>
+                                                            <div className={`font-medium ${summaryType === type ? 'text-blue-300' : 'text-white'}`}>
+                                                                {typeInfo.title}
+                                                            </div>
+                                                            <div className="text-sm text-gray-400">
+                                                                {typeInfo.description}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Document Text Input */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-2">
                                         Paste your legal document text (minimum 100 characters)
@@ -154,7 +220,7 @@ export default function AIInsights() {
                                         value={documentText}
                                         onChange={(e) => setDocumentText(e.target.value)}
                                         placeholder="Paste your legal document text here..."
-                                        className="w-full h-64 px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                        className="w-full h-48 px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                                     />
                                     <div className="flex justify-between items-center mt-2 text-xs text-gray-400">
                                         <span>{documentText.length} characters</span>
@@ -176,7 +242,7 @@ export default function AIInsights() {
                                     ) : (
                                         <>
                                             <Brain className="w-4 h-4" />
-                                            Summarize Document
+                                            Generate {getSummaryTypeInfo(summaryType).title}
                                         </>
                                     )}
                                 </button>
@@ -185,26 +251,64 @@ export default function AIInsights() {
 
                         {/* Results Section */}
                         <div className="bg-slate-800 border border-slate-700 rounded-lg p-6">
-                            <h3 className="text-xl font-semibold text-blue-300 mb-4">AI Summary</h3>
+                            <div className="flex items-center gap-2 mb-4">
+                                <h3 className="text-xl font-semibold text-blue-300">AI Summary</h3>
+                                {summaryResult && (
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        summaryType === 'plain_language' 
+                                            ? 'bg-blue-900/30 text-blue-300 border border-blue-700'
+                                            : summaryType === 'executive'
+                                            ? 'bg-purple-900/30 text-purple-300 border border-purple-700'
+                                            : 'bg-red-900/30 text-red-300 border border-red-700'
+                                    }`}>
+                                        {getSummaryTypeInfo(summaryType).title}
+                                    </span>
+                                )}
+                            </div>
+                            
                             {summaryResult ? (
                                 <div className="space-y-6">
                                     {/* Summary */}
                                     <div>
-                                        <h4 className="text-lg font-medium text-white mb-2">Summary</h4>
-                                        <p className="text-gray-300 leading-relaxed bg-slate-900 p-4 rounded-lg">
-                                            {summaryResult.summary}
-                                        </p>
+                                        <h4 className="text-lg font-medium text-white mb-3 flex items-center gap-2">
+                                            {summaryType === 'plain_language' && <MessageSquare className="w-5 h-5 text-blue-400" />}
+                                            {summaryType === 'executive' && <TrendingUp className="w-5 h-5 text-purple-400" />}
+                                            {summaryType === 'risks' && <AlertCircle className="w-5 h-5 text-red-400" />}
+                                            {summaryType === 'plain_language' ? 'Summary' : 
+                                             summaryType === 'executive' ? 'Executive Brief' : 'Risk Analysis'}
+                                        </h4>
+                                        <div className={`p-4 rounded-lg ${
+                                            summaryType === 'plain_language' 
+                                                ? 'bg-blue-900/10 border border-blue-800/30'
+                                                : summaryType === 'executive'
+                                                ? 'bg-purple-900/10 border border-purple-800/30'
+                                                : 'bg-red-900/10 border border-red-800/30'
+                                        }`}>
+                                            <p className="text-gray-300 leading-relaxed">
+                                                {summaryResult.summary}
+                                            </p>
+                                        </div>
                                     </div>
 
                                     {/* Key Points */}
                                     {summaryResult.key_points.length > 0 && (
                                         <div>
-                                            <h4 className="text-lg font-medium text-white mb-2">Key Points</h4>
+                                            <h4 className="text-lg font-medium text-white mb-3 flex items-center gap-2">
+                                                <CheckCircle className="w-5 h-5 text-green-400" />
+                                                {summaryType === 'plain_language' ? 'Key Points' : 
+                                                 summaryType === 'executive' ? 'Critical Items' : 'Risk Factors'}
+                                            </h4>
                                             <div className="space-y-2">
                                                 {summaryResult.key_points.map((point, index) => (
-                                                    <div key={index} className="flex items-start gap-3 bg-slate-900 p-3 rounded-lg">
-                                                        <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                                                        <span className="text-gray-300 text-sm">{point}</span>
+                                                    <div key={index} className="flex items-start gap-3 bg-slate-900 p-3 rounded-lg border border-slate-700">
+                                                        <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                                                            summaryType === 'plain_language' 
+                                                                ? 'bg-blue-400'
+                                                                : summaryType === 'executive'
+                                                                ? 'bg-purple-400'
+                                                                : 'bg-red-400'
+                                                        }`} />
+                                                        <span className="text-gray-300 text-sm leading-relaxed">{point}</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -213,8 +317,8 @@ export default function AIInsights() {
 
                                     {/* Metadata */}
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-slate-900 p-4 rounded-lg">
-                                            <div className="flex items-center gap-2 mb-1">
+                                        <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                                            <div className="flex items-center gap-2 mb-2">
                                                 <Shield className="w-4 h-4 text-blue-400" />
                                                 <span className="text-sm font-medium text-gray-300">Risk Level</span>
                                             </div>
@@ -222,22 +326,28 @@ export default function AIInsights() {
                                                 {summaryResult.risk_level}
                                             </span>
                                         </div>
-                                        <div className="bg-slate-900 p-4 rounded-lg">
-                                            <div className="flex items-center gap-2 mb-1">
+                                        <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                                            <div className="flex items-center gap-2 mb-2">
                                                 <FileText className="w-4 h-4 text-green-400" />
-                                                <span className="text-sm font-medium text-gray-300">Word Reduction</span>
+                                                <span className="text-sm font-medium text-gray-300">Compression</span>
                                             </div>
-                                            <span className="text-lg font-bold text-green-400">
-                                                {summaryResult.word_count_reduction}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-lg font-bold text-green-400">
+                                                    {summaryResult.word_count_reduction}
+                                                </span>
+                                                <span className="text-xs text-gray-400">reduced</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="text-center py-12">
                                     <Brain className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                                    <p className="text-gray-400">
-                                        Enter document text and click "Summarize Document" to get started
+                                    <p className="text-gray-400 mb-2">
+                                        Enter document text and select summary type
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                        Choose from Plain Language, Executive Summary, or Risk Analysis
                                     </p>
                                 </div>
                             )}
@@ -296,24 +406,32 @@ export default function AIInsights() {
                                 <div className="space-y-6">
                                     {/* Plain English Explanation */}
                                     <div>
-                                        <h4 className="text-lg font-medium text-white mb-2">What it means</h4>
-                                        <p className="text-gray-300 leading-relaxed bg-slate-900 p-4 rounded-lg">
-                                            {clauseResult.plain_english}
-                                        </p>
+                                        <h4 className="text-lg font-medium text-white mb-3 flex items-center gap-2">
+                                            <MessageSquare className="w-5 h-5 text-blue-400" />
+                                            What it means
+                                        </h4>
+                                        <div className="bg-blue-900/10 border border-blue-800/30 p-4 rounded-lg">
+                                            <p className="text-gray-300 leading-relaxed">
+                                                {clauseResult.plain_english}
+                                            </p>
+                                        </div>
                                     </div>
 
                                     {/* Potential Risks */}
                                     {clauseResult.potential_risks.length > 0 && (
                                         <div>
-                                            <h4 className="text-lg font-medium text-white mb-2 flex items-center gap-2">
+                                            <h4 className="text-lg font-medium text-white mb-3 flex items-center gap-2">
                                                 <AlertCircle className="w-5 h-5 text-red-400" />
                                                 Potential Risks
                                             </h4>
-                                            <div className="space-y-2">
+                                            <div className="space-y-3">
                                                 {clauseResult.potential_risks.map((risk, index) => (
-                                                    <div key={index} className="flex items-start gap-3 bg-red-900/20 border border-red-700/30 p-3 rounded-lg">
-                                                        <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
-                                                        <span className="text-red-200 text-sm">{risk}</span>
+                                                    <div key={index} className="flex items-start gap-3 bg-red-900/10 border border-red-800/30 p-4 rounded-lg">
+                                                        <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+                                                        <div>
+                                                            <span className="text-red-200 font-medium text-sm block mb-1">Risk {index + 1}</span>
+                                                            <span className="text-red-100 text-sm leading-relaxed">{risk}</span>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -323,26 +441,54 @@ export default function AIInsights() {
                                     {/* Recommendations */}
                                     {clauseResult.recommendations.length > 0 && (
                                         <div>
-                                            <h4 className="text-lg font-medium text-white mb-2 flex items-center gap-2">
+                                            <h4 className="text-lg font-medium text-white mb-3 flex items-center gap-2">
                                                 <Lightbulb className="w-5 h-5 text-yellow-400" />
                                                 Recommendations
                                             </h4>
-                                            <div className="space-y-2">
+                                            <div className="space-y-3">
                                                 {clauseResult.recommendations.map((recommendation, index) => (
-                                                    <div key={index} className="flex items-start gap-3 bg-yellow-900/20 border border-yellow-700/30 p-3 rounded-lg">
-                                                        <Lightbulb className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
-                                                        <span className="text-yellow-200 text-sm">{recommendation}</span>
+                                                    <div key={index} className="flex items-start gap-3 bg-yellow-900/10 border border-yellow-800/30 p-4 rounded-lg">
+                                                        <Lightbulb className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+                                                        <div>
+                                                            <span className="text-yellow-200 font-medium text-sm block mb-1">Recommendation {index + 1}</span>
+                                                            <span className="text-yellow-100 text-sm leading-relaxed">{recommendation}</span>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Action Summary */}
+                                    <div className="bg-slate-900 border border-slate-700 p-4 rounded-lg">
+                                        <h5 className="text-white font-medium mb-2 flex items-center gap-2">
+                                            <CheckCircle className="w-4 h-4 text-green-400" />
+                                            Quick Summary
+                                        </h5>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                            <div className="text-center">
+                                                <div className="text-blue-400 font-medium">Explanation</div>
+                                                <div className="text-gray-400">✓ Provided</div>
+                                            </div>
+                                            <div className="text-center">
+                                                <div className="text-red-400 font-medium">Risks</div>
+                                                <div className="text-gray-400">{clauseResult.potential_risks.length} identified</div>
+                                            </div>
+                                            <div className="text-center">
+                                                <div className="text-yellow-400 font-medium">Actions</div>
+                                                <div className="text-gray-400">{clauseResult.recommendations.length} suggested</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="text-center py-12">
                                     <MessageSquare className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                                    <p className="text-gray-400">
-                                        Enter a legal clause and click "Explain Clause" to get started
+                                    <p className="text-gray-400 mb-2">
+                                        Enter a legal clause to get started
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                        Get plain English explanations, risk analysis, and actionable recommendations
                                     </p>
                                 </div>
                             )}

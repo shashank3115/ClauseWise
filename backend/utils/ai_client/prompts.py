@@ -25,8 +25,10 @@ STEP 2: APPLICABLE LAW DETERMINATION
 Apply ONLY relevant legal frameworks based on contract analysis:
 
 FOR EMPLOYMENT CONTRACTS (Malaysia):
-- Employment Act 1955 - Sections 12 (termination notice), 60A (working hours/overtime), 60E (annual leave)
-- Minimum wage requirements
+- Employment Act 1955 - Sections 12 (termination notice), 60A (working hours/overtime), 60E (annual leave), 11 (probation)
+- Minimum wage requirements (RM1,500)
+- EPF Act 1991 (11% employee, 12-13% employer contribution)
+- SOCSO Act 1969 (employment injury and invalidity coverage)
 - Statutory benefits and protections
 
 FOR DATA PROCESSING (Any jurisdiction):
@@ -41,11 +43,22 @@ STEP 3: RIGOROUS LEGAL ANALYSIS
 Identify ONLY clear statutory violations with specific legal references:
 
 EMPLOYMENT LAW VIOLATIONS (Employment Act 1955):
-✓ Section 12: Termination without minimum notice (4 weeks for >2 years service)
+✓ Section 12: Termination without minimum notice (2 weeks for <2 years, 4 weeks for >2 years service)
 ✓ Section 60A: Missing overtime compensation (1.5x normal rate)
 ✓ Section 60A: Excessive working hours (>8 hours/day or >48 hours/week)
 ✓ Section 60E: Missing annual leave (8-16 days based on service length)
-✓ Below minimum wage provisions
+✓ Section 11: Probation period exceeding 6 months
+✓ Below minimum wage (RM1,500 monthly)
+✓ Missing EPF/SOCSO contributions
+✓ Missing rest day and public holiday provisions
+
+SPECIFIC EMPLOYMENT CONTRACT ANALYSIS EXAMPLES:
+- "Employee may be terminated without notice" → HIGH SEVERITY (violates Section 12)
+- "Working hours: 10 hours per day" → HIGH SEVERITY (violates Section 60A maximum 8 hours)
+- "Salary: RM1,200 per month" → HIGH SEVERITY (below RM1,500 minimum wage)
+- "No overtime payment mentioned" → HIGH SEVERITY (violates Section 60A)
+- "Annual leave: 5 days" → MEDIUM SEVERITY (below Section 60E minimum 8 days)
+- "Probation: 12 months" → MEDIUM SEVERITY (exceeds Section 11 maximum 6 months)
 
 DATA PROTECTION VIOLATIONS:
 ✓ Missing explicit consent for personal data collection
@@ -71,7 +84,20 @@ CRITICAL RULES FOR IBM GRANITE:
 4. Do NOT flag theoretical or minor issues
 5. Do NOT apply employment law to non-employment contracts
 6. Do NOT apply PDPA/GDPR unless contract processes personal data
-7. Maximum 5 flagged clauses to maintain focus on critical issues
+7. Maximum 8 flagged clauses to maintain focus on critical issues
+8. Be extremely specific in identifying violations
+
+ENHANCED EMPLOYMENT CONTRACT REQUIREMENTS:
+For Malaysian employment contracts, specifically check for:
+- Termination notice periods (minimum 2-4 weeks based on service)
+- Working hours compliance (max 8 hours/day, 48 hours/week)
+- Overtime payment provisions (minimum 1.5x normal rate)
+- Annual leave entitlement (8-16 days based on service)
+- Probation period limits (maximum 6 months)
+- Minimum wage compliance (RM1,500 monthly)
+- EPF contribution (11% employee, 12-13% employer)
+- SOCSO contribution requirements
+- Rest days and public holiday provisions
 
 RESPONSE FORMAT:
 Return ONLY valid JSON with specific legal references. Each compliance issue must have exactly ONE law field:
@@ -88,8 +114,8 @@ Return ONLY valid JSON with specific legal references. Each compliance issue mus
   "compliance_issues": [
     {
       "law": "EMPLOYMENT_ACT_MY",
-      "missing_requirements": ["Specific employment law requirements missing from contract"],
-      "recommendations": ["Add specific employment law compliance measures"]
+      "missing_requirements": ["Specific employment law requirements missing from contract with exact statutory references"],
+      "recommendations": ["Add specific employment law compliance measures with exact implementation details"]
     },
     {
       "law": "PDPA_MY", 
@@ -103,7 +129,8 @@ CRITICAL:
 - Use exactly ONE law per compliance issue object
 - Valid law values: EMPLOYMENT_ACT_MY, PDPA_MY, PDPA_SG, GDPR_EU, CCPA_US
 - Do NOT combine multiple laws in one field
-- Be specific in requirements and recommendations
+- Be extremely specific in requirements and recommendations with exact statutory section references
+- Include specific amounts, timeframes, and percentages in requirements
 
 If contract is fully compliant:
 {
