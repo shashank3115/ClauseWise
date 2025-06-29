@@ -517,7 +517,7 @@ This project is developed for the IBM TechXchange Hackathon 2025. All rights res
 
 ```bash
 # One-command setup
-git clone <repository-url> && cd legal-guard-regtech && ./setup.sh
+git clone https://github.com/nathangtg/legal-guard-regtech && cd legal-guard-regtech && ./setup.sh
 ```
 
 **Experience the Future of Legal Technology Today!** 🌟
