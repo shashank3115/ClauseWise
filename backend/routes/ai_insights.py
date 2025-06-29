@@ -7,6 +7,7 @@ This module provides clean AI endpoints using IBM Granite for:
 - Contract clause explanations
 """
 
+import json
 import logging
 from typing import Dict, Any
 from fastapi import APIRouter, HTTPException, Depends
@@ -62,44 +63,53 @@ async def summarize_document(
         # Create summary prompt based on type
         if request.summary_type == "plain_language":
             prompt = f"""
-            Please write a simple, easy-to-understand summary of this legal document. Do NOT use JSON format.
+            Please analyze this legal document and provide a simple, easy-to-understand summary.
             
             Document:
             {request.text}
             
-            Write a paragraph summary in plain English that explains:
-            - What type of document this is
-            - Who the parties are
-            - The main purpose and key terms
-            - Important rights and obligations
-            - Any deadlines or important conditions
+            First, identify what type of document this is (employment contract, service agreement, privacy policy, etc.).
             
-            Write your response as normal text, like you would explain it to a friend. Do not use JSON, brackets, or structured data format.
+            Then write a clear paragraph summary in plain English that explains:
+            - What type of document this is and its main purpose
+            - Who the parties are (if applicable)
+            - The key terms and obligations
+            - Important rights, payments, or deadlines
+            - Any notable conditions or restrictions
+            
+            Write your response as normal text, like you would explain it to a friend. Be concise and focus on the most important points.
             """
         elif request.summary_type == "executive":
             prompt = f"""
-            Write a business-focused executive summary of this legal document. Use plain text, not JSON.
+            Write a business-focused executive summary of this legal document.
             
             Document:
             {request.text}
             
-            Write a concise paragraph that covers:
-            - Business impact and implications
-            - Key financial terms or obligations  
-            - Critical deadlines and milestones
-            - Risk assessment and concerns
+            Provide a concise executive summary that covers:
+            - Business impact and implications of this agreement
+            - Key financial terms, obligations, and commitments  
+            - Critical deadlines, milestones, and deliverables
+            - Main risks and areas of concern for the business
+            - Key performance requirements or standards
             
-            Write in plain text format suitable for business executives.
+            Write in a professional tone suitable for business executives and decision-makers.
             """
         else:  # risks
             prompt = f"""
-            Explain the main risks and potential problems in this legal document. Use plain text, not JSON.
+            Analyze the main risks and potential problems in this legal document.
             
             Document:
             {request.text}
             
-            Write a clear explanation of potential risks, problems, and areas of concern.
-            Focus on what could go wrong and what to watch out for.
+            Identify and explain the primary risks, including:
+            - Legal and compliance risks
+            - Financial exposure and liabilities
+            - Operational risks and dependencies
+            - Potential disputes or enforcement issues
+            - Areas where terms may be unclear or problematic
+            
+            Focus on practical business risks and what could realistically go wrong. Be specific about the potential consequences.
             """
         
         # Get AI response
@@ -229,6 +239,7 @@ async def summarize_document(
                             key_points.append(clean_sentence)
                             
                             if len(key_points) >= 5:  # Limit to 5 key points
+                                break  # Limit to 5 key points
                                 break
             
             # Final fallback: create key points from main topics if still empty

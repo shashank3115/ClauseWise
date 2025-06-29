@@ -7,48 +7,110 @@ class PromptFormatter:
     SYSTEM_MESSAGES = {
         "default": "You are LegalGuard AI, an expert legal technology assistant. You analyze contracts and provide structured JSON responses.",
         
-        "contract_analysis": """You are LegalGuard AI, an expert legal compliance analyzer with deep expertise in GDPR, PDPA, employment law, and contract compliance.
+        "contract_analysis": """You are LegalGuard AI powered by IBM Granite, an expert legal compliance analyzer specialized in Malaysian employment law, PDPA, GDPR, and contract compliance for the TechXchange Hackathon.
 
-ANALYSIS REQUIREMENTS:
-You must perform a thorough legal compliance analysis and identify ALL significant issues, violations, and risks in the provided contract.
+CRITICAL ANALYSIS INSTRUCTIONS FOR IBM GRANITE:
+You are analyzing contracts with precision and legal expertise. Apply rigorous legal analysis and only flag genuine statutory violations.
 
-CRITICAL FOCUS AREAS:
-1. GDPR/PDPA Data Protection Violations:
-   - Missing data subject consent mechanisms
-   - Inadequate cross-border data transfer safeguards
-   - Excessive or indefinite data retention periods
-   - Missing data subject rights (access, erasure, portability)
-   - Insufficient data breach notification procedures
-   - Missing Data Protection Officer requirements
-   - Inadequate security measures and certifications
+ANALYSIS METHODOLOGY:
 
-2. Employment Law Violations:
-   - Insufficient termination notice periods
-   - Missing overtime compensation provisions
-   - Inadequate working time protections
-   - Non-compliant salary and benefits structures
+STEP 1: CONTRACT TYPE IDENTIFICATION
+Carefully read the entire contract and determine:
+- Contract type: employment, service agreement, data processing, NDA, etc.
+- Primary business relationship and obligations
+- Whether personal data processing is involved
+- Jurisdiction and governing law
 
-3. Contract Law Issues:
-   - Inadequate liability caps that don't cover potential GDPR fines
-   - Unfair indemnification clauses
-   - Unilateral contract modification rights
-   - Missing or weak security audit requirements
-   - Problematic governing law and jurisdiction clauses
+STEP 2: APPLICABLE LAW DETERMINATION
+Apply ONLY relevant legal frameworks based on contract analysis:
 
-ANALYSIS APPROACH:
-- Examine every clause for potential legal violations
-- Identify specific text that violates regulations
-- Assess severity based on potential financial and legal impact
-- Provide actionable legal recommendations
-- Focus on real business risks and compliance gaps
+FOR EMPLOYMENT CONTRACTS (Malaysia):
+- Employment Act 1955 - Sections 12 (termination notice), 60A (working hours/overtime), 60E (annual leave)
+- Minimum wage requirements
+- Statutory benefits and protections
 
-OUTPUT REQUIREMENTS:
-You MUST return a complete JSON response with exactly these fields:
-- "summary": Detailed assessment of all compliance risks found
-- "flagged_clauses": Array of problematic clauses with exact text, specific legal issues, and severity ratings
-- "compliance_issues": Array of regulatory violations with specific laws, missing requirements, and recommendations
+FOR DATA PROCESSING (Any jurisdiction):
+- PDPA (Malaysia/Singapore) - Consent, data subject rights, security
+- GDPR (EU) - Lawful basis, data subject rights, cross-border transfers
+- CCPA (US) - Consumer rights, disclosure requirements
 
-Be comprehensive and identify ALL significant legal issues. Do not provide generic responses.""",
+FOR ALL CONTRACTS:
+- Contract law principles - consideration, unconscionable terms, enforceability
+
+STEP 3: RIGOROUS LEGAL ANALYSIS
+Identify ONLY clear statutory violations with specific legal references:
+
+EMPLOYMENT LAW VIOLATIONS (Employment Act 1955):
+✓ Section 12: Termination without minimum notice (4 weeks for >2 years service)
+✓ Section 60A: Missing overtime compensation (1.5x normal rate)
+✓ Section 60A: Excessive working hours (>8 hours/day or >48 hours/week)
+✓ Section 60E: Missing annual leave (8-16 days based on service length)
+✓ Below minimum wage provisions
+
+DATA PROTECTION VIOLATIONS:
+✓ Missing explicit consent for personal data collection
+✓ Inadequate lawful basis for processing
+✓ Missing data subject rights (access, rectification, erasure)
+✓ Insufficient cross-border transfer safeguards
+✓ Missing breach notification procedures
+
+GENERAL CONTRACT VIOLATIONS:
+✓ Unconscionable liability limitations (<RM1,000)
+✓ Unilateral modification rights without consideration
+✓ Missing essential terms (consideration, performance obligations)
+
+STEP 4: SEVERITY ASSESSMENT
+- HIGH: Clear violation of mandatory statutory requirements with significant penalties
+- MEDIUM: Non-compliance with regulatory guidance or best practices
+- LOW: Minor technical issues (avoid flagging these)
+
+CRITICAL RULES FOR IBM GRANITE:
+1. ONLY flag clear violations of specific statutory provisions
+2. Provide exact legal section references (e.g., "Employment Act 1955 Section 12")
+3. Extract precise clause text that violates the law
+4. Do NOT flag theoretical or minor issues
+5. Do NOT apply employment law to non-employment contracts
+6. Do NOT apply PDPA/GDPR unless contract processes personal data
+7. Maximum 5 flagged clauses to maintain focus on critical issues
+
+RESPONSE FORMAT:
+Return ONLY valid JSON with specific legal references. Each compliance issue must have exactly ONE law field:
+
+{
+  "summary": "Precise assessment of statutory violations found with specific legal references",
+  "flagged_clauses": [
+    {
+      "clause_text": "Exact contract clause text that violates the law",
+      "issue": "Specific violation with exact statutory reference (e.g., 'Violates Employment Act 1955 Section 12 - minimum 4 weeks notice required')",
+      "severity": "high|medium"
+    }
+  ],
+  "compliance_issues": [
+    {
+      "law": "EMPLOYMENT_ACT_MY",
+      "missing_requirements": ["Specific employment law requirements missing from contract"],
+      "recommendations": ["Add specific employment law compliance measures"]
+    },
+    {
+      "law": "PDPA_MY", 
+      "missing_requirements": ["Specific data protection requirements missing"],
+      "recommendations": ["Implement specific PDPA compliance measures"]
+    }
+  ]
+}
+
+CRITICAL: 
+- Use exactly ONE law per compliance issue object
+- Valid law values: EMPLOYMENT_ACT_MY, PDPA_MY, PDPA_SG, GDPR_EU, CCPA_US
+- Do NOT combine multiple laws in one field
+- Be specific in requirements and recommendations
+
+If contract is fully compliant:
+{
+  "summary": "Contract meets applicable statutory requirements for the identified jurisdiction.",
+  "flagged_clauses": [],
+  "compliance_issues": []
+}""",
         
         "metadata_extraction": "You are a legal document analyzer. Extract metadata from contracts and return structured JSON.",
         
@@ -75,7 +137,7 @@ Be comprehensive and identify ALL significant legal issues. Do not provide gener
 
 {prompt}
 
-Complete JSON response:"""
+Analyze carefully and return complete JSON response:"""
     
     @staticmethod
     def build_contract_analysis_prompt(contract_text: str, compliance_checklist: Dict[str, Any]) -> str:
@@ -89,67 +151,109 @@ Complete JSON response:"""
         Returns:
             Formatted analysis prompt
         """
+        # Clean the contract text for better analysis
+        cleaned_contract = PromptFormatter._clean_contract_text(contract_text)
         checklist_str = json.dumps(compliance_checklist, indent=2)
         
-        return f"""URGENT LEGAL COMPLIANCE ANALYSIS
+        return f"""LEGAL COMPLIANCE ANALYSIS TASK
 
-CONTRACT TEXT TO ANALYZE:
-{contract_text}
+CONTRACT TO ANALYZE:
+```
+{cleaned_contract}
+```
 
 APPLICABLE LEGAL REQUIREMENTS:
 {checklist_str}
 
-DETAILED ANALYSIS INSTRUCTIONS:
+ANALYSIS INSTRUCTIONS:
 
-1. MANDATORY GDPR/PDPA COMPLIANCE CHECK:
-   - Scan for data processing activities without proper consent
-   - Identify cross-border data transfers lacking adequate safeguards
-   - Flag excessive data retention periods (look for "indefinite", "unlimited", or periods over 2 years)
-   - Check for missing data subject rights (access, erasure, portability, rectification)
-   - Verify data breach notification requirements (must be within 72 hours)
-   - Ensure Data Protection Officer (DPO) requirements are addressed
-   - Validate security measures and audit requirements
+1. READ THE ENTIRE CONTRACT CAREFULLY
+   - Identify the contract type and business relationship
+   - Determine if personal data is actually processed
+   - Identify the governing jurisdiction
+   - Note the parties and their roles
 
-2. EMPLOYMENT LAW COMPLIANCE CHECK:
-   - Verify termination notice periods meet minimum statutory requirements
-   - Check overtime compensation and working time provisions
-   - Validate salary, benefits, and compensation structures
-   - Review workplace rights and protections
+2. DETERMINE APPLICABLE LAWS
+   Based on what you read, apply ONLY relevant legal frameworks:
+   
+   IF this is a data processing agreement OR privacy policy OR contains personal data collection:
+   → Apply GDPR/PDPA requirements
+   
+   IF this is an employment contract OR contractor agreement with employment-like terms:
+   → Apply employment law requirements
+   
+   FOR ALL contracts:
+   → Apply general contract law principles
 
-3. CONTRACT RISK ASSESSMENT:
-   - Analyze liability limitations (flag caps under €1M for GDPR compliance)
-   - Review indemnification clauses for unfair risk allocation
-   - Check for unilateral modification rights without proper consent
-   - Assess governing law and jurisdiction clauses
+3. IDENTIFY GENUINE VIOLATIONS ONLY
+   Look for specific clauses that violate mandatory legal requirements:
+   
+   For Data Processing (if applicable):
+   ✓ Check for proper consent mechanisms
+   ✓ Verify lawful basis for processing
+   ✓ Ensure data subject rights are addressed
+   ✓ Check cross-border transfer safeguards
+   ✓ Verify breach notification procedures
+   ✓ Check security measures
+   
+   For Employment (if applicable):
+   ✓ Verify termination notice periods meet minimums
+   ✓ Check overtime and working time compliance
+   ✓ Ensure minimum wage compliance
+   ✓ Verify leave entitlements
+   
+   For All Contracts:
+   ✓ Check liability limitations are reasonable
+   ✓ Ensure termination clauses are fair
+   ✓ Verify indemnification is balanced
+   ✓ Check for unconscionable terms
 
-CRITICAL OUTPUT REQUIREMENTS:
-Return ONLY valid JSON in this exact format (no additional text):
+4. EXTRACT CLEAN CLAUSE TEXT
+   When flagging problematic clauses:
+   - Remove all markdown formatting (\n, **, ##, etc.)
+   - Provide the exact problematic text in readable format
+   - Keep clause text concise but complete
 
-{{
-  "summary": "Comprehensive assessment detailing all compliance risks, violations found, and overall legal exposure",
-  "flagged_clauses": [
-    {{
-      "clause_text": "Exact problematic text from contract",
-      "issue": "Specific legal violation or compliance issue with law reference",
-      "severity": "high"
-    }}
-  ],
-  "compliance_issues": [
-    {{
-      "law": "PDPA_MY",
-      "missing_requirements": ["Detailed list of missing legal requirements"],
-      "recommendations": ["Specific actionable legal recommendations"]
-    }}
-  ]
-}}
+5. ASSESS SEVERITY ACCURATELY
+   - HIGH: Violates mandatory law with serious penalties
+   - MEDIUM: Non-compliance with guidance or best practices  
+   - LOW: Minor technical issues
 
-IMPORTANT: 
-- Use actual law IDs like "PDPA_MY", "GDPR_EU", "CCPA_US", "EMPLOYMENT_ACT_MY" - NEVER use "SPECIFIC_LAW_ID"
-- Analyze the actual contract text thoroughly. Identify real issues, not generic problems. 
-- Be specific about violations and provide actionable recommendations.
-- Do not use placeholder text like "Detailed list of missing legal requirements" - provide actual specific requirements.
+IMPORTANT: If the contract is a simple service agreement with no personal data processing, do NOT flag PDPA violations. If it's not an employment contract, do NOT flag employment law issues.
 
-Analyze thoroughly and identify ALL significant compliance gaps."""
+Provide your analysis as valid JSON only."""
+    
+    @staticmethod
+    def _clean_contract_text(contract_text: str) -> str:
+        """
+        Clean contract text to remove excessive whitespace and formatting issues.
+        
+        Args:
+            contract_text: Raw contract text
+            
+        Returns:
+            Cleaned contract text
+        """
+        # Remove excessive newlines and whitespace
+        lines = contract_text.split('\n')
+        cleaned_lines = []
+        
+        for line in lines:
+            cleaned_line = line.strip()
+            if cleaned_line:  # Only keep non-empty lines
+                cleaned_lines.append(cleaned_line)
+        
+        # Join with single newlines and limit total length for context window
+        cleaned = '\n'.join(cleaned_lines)
+        
+        # If contract is very long, truncate but ensure we keep important parts
+        if len(cleaned) > 8000:  # Reasonable limit for analysis
+            # Try to keep the beginning and end, which often contain key terms
+            first_half = cleaned[:4000]
+            last_half = cleaned[-4000:]
+            cleaned = first_half + "\n\n[... middle section truncated ...]\n\n" + last_half
+        
+        return cleaned
     
     @staticmethod
     def build_metadata_extraction_prompt(contract_text: str) -> str:
@@ -162,19 +266,25 @@ Analyze thoroughly and identify ALL significant compliance gaps."""
         Returns:
             Formatted metadata extraction prompt
         """
+        cleaned_contract = PromptFormatter._clean_contract_text(contract_text)
+        
         return f"""Analyze this contract and extract key metadata.
 
 CONTRACT TEXT:
-{contract_text}
+```
+{cleaned_contract}
+```
 
-Return a JSON object with this structure:
+Extract the following information and return as JSON:
+
 {{
-  "contract_type": "employment|service|nda|partnership|other",
+  "contract_type": "employment|service|nda|partnership|data_processing|other",
   "parties": ["list of contracting parties"],
   "jurisdiction": "detected jurisdiction code (MY/SG/EU/US)",
   "key_dates": ["important dates mentioned"],
   "contract_value": "monetary value if mentioned",
-  "duration": "contract duration if specified"
+  "duration": "contract duration if specified",
+  "data_processing": "yes|no - does this contract involve personal data processing"
 }}
 
 JSON response only:"""
@@ -195,7 +305,12 @@ JSON response only:"""
 ANALYSIS RESULTS:
 {json.dumps(analysis_results, indent=2)}
 
-Return a JSON object with:
+Create a concise executive summary focusing on:
+1. Overall compliance status
+2. Critical risks that need immediate attention
+3. Recommended next steps
+
+Return JSON with:
 {{
   "executive_summary": "2-3 sentence overview for executives",
   "key_risks": ["top 3 compliance risks"],

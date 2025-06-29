@@ -25,7 +25,7 @@ class WatsonXConfig:
     temperature: float = 0.1
     max_tokens: int = 8191  # Maximum allowed by IBM WatsonX
     top_p: float = 0.95
-    timeout: int = 60
+    timeout: int = 120  # Increased from 60 to 120 seconds for longer documents
 
     @classmethod
     def from_environment(cls) -> 'WatsonXConfig':
