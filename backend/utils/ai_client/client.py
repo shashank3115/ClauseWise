@@ -458,3 +458,31 @@ class WatsonXClient:
                     pass
             
             return None
+    def generate_text(self, prompt: str, max_tokens: int = 200, temperature: float = 0.3) -> str:
+        """
+        Generate text using the WatsonX AI model with custom parameters.
+        
+        Args:
+            prompt: The prompt to send to the model
+            max_tokens: Maximum number of tokens to generate
+            temperature: Temperature for text generation (0.0 to 1.0)
+            
+        Returns:
+            Generated text response
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        # Temporarily override config parameters
+        original_max_tokens = self.config.max_tokens
+        original_temperature = self.config.temperature
+        
+        try:
+            self.config.max_tokens = max_tokens
+            self.config.temperature = temperature
+            
+            return self._make_text_request(prompt)
+        finally:
+            # Restore original config
+            self.config.max_tokens = original_max_tokens
+            self.config.temperature = original_temperature
