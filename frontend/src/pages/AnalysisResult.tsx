@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle, XCircle, Shield, BookOpen, ArrowLeft, Downl
 import Header from '../components/layout/Header';
 import RiskScoreDisplay from '../components/RiskScoreDisplay';
 import { calculateRiskScore } from '../services/contractService';
+import { downloadAnalysisReport } from '../services/pdfService';
 
 interface FlaggedClause {
     clause_text: string;
@@ -38,6 +39,7 @@ export default function AnalysisResults() {
     const [riskScore, setRiskScore] = useState<ComplianceRiskScore | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadingRiskScore, setLoadingRiskScore] = useState(false);
+    const [downloadingPDF, setDownloadingPDF] = useState(false);
 
     useEffect(() => {
         if (!analysisId) {
@@ -110,6 +112,29 @@ export default function AnalysisResults() {
             US: 'United States'
         };
         return jurisdictionNames[code] || code;
+    };
+
+    const handleDownloadReport = async () => {
+        if (!result) return;
+        
+        try {
+            setDownloadingPDF(true);
+            
+            // Generate a nice filename
+            const jurisdictionCode = result.jurisdiction;
+            const date = new Date().toISOString().split('T')[0];
+            const time = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
+            const filename = `LegalGuard-Analysis-${jurisdictionCode}-${date}-${time}.pdf`;
+            
+            // Generate and download the PDF report
+            downloadAnalysisReport(result, riskScore, filename);
+            
+        } catch (error) {
+            console.error('Error generating PDF report:', error);
+            // You could add a toast notification here for better UX
+        } finally {
+            setDownloadingPDF(false);
+        }
     };
 
     if (loading) {
@@ -306,9 +331,22 @@ export default function AnalysisResults() {
 
                 {/* Action Buttons */}
                 <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-                    <button className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 px-6 py-3 rounded-md text-white font-medium transition">
-                        <Download className="w-5 h-5" />
-                        Download Report
+                    <button 
+                        onClick={handleDownloadReport}
+                        disabled={downloadingPDF}
+                        className="flex items-center gap-2 bg-blue-700 hover:bg-blue-800 disabled:bg-blue-900 disabled:cursor-not-allowed px-6 py-3 rounded-md text-white font-medium transition"
+                    >
+                        {downloadingPDF ? (
+                            <>
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                Generating PDF...
+                            </>
+                        ) : (
+                            <>
+                                <Download className="w-5 h-5" />
+                                Download Report
+                            </>
+                        )}
                     </button>
                     <Link
                         to="/analyze"
