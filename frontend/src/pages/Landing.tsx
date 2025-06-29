@@ -1,36 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Shield, FileText, TrendingUp, Users, ArrowRight, CheckCircle } from 'lucide-react';
+import Header from '../components/layout/Header';
 
 export default function Landing() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      {/* Navigation */}
-      <nav className="bg-gray-800/50 backdrop-blur-sm border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <div className="bg-[#1e40af] w-8 h-8 flex items-center justify-center rounded-lg">
-                <Shield className="text-white w-5 h-5" />
-              </div>
-              <span className="ml-2 text-xl font-bold text-white">LegalGuard</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link to="/compliance" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                Compliance
-              </Link>
-              <Link to="/regulations" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                Regulations
-              </Link>
-              <Link to="/login" className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                Sign In
-              </Link>
-              <Link to="/signup" className="bg-[#1e40af] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-                Get Started
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Header />
 
       {/* Hero Section */}
       <div className="relative overflow-hidden">
