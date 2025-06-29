@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import Analyze from './pages/Analyze'
-import AnalysisResult from './pages/AnalysisResult'
 import BulkAnalyze from './pages/BulkAnalyze'
 import Compliance from './pages/Compliance'
 import Regulations from './pages/Regulations'
@@ -12,6 +11,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import AdminManagement from './pages/AdminManagement'
 import ProtectedRoute from './components/ProtectedRoute'
+import AnalysisResults from './pages/AnalysisResult'
 
 export default function App() {
   return (
@@ -37,7 +37,7 @@ export default function App() {
         } />
         <Route path='/analysis/:analysisId' element={
           <ProtectedRoute>
-            <AnalysisResult />
+            <AnalysisResults />
           </ProtectedRoute>
         } />
         <Route path='/bulk-analyze' element={

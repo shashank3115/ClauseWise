@@ -153,63 +153,227 @@ class ContractAnalyzerService:
 
     async def calculate_risk_score(self, analysis_response: ContractAnalysisResponse) -> ComplianceRiskScore:
         """
-        Calculate comprehensive risk scoring, now driven by data from our JSON files.
+        Calculate comprehensive risk scoring with proper weighting for severity and violations.
+        Uses IBM Granite AI for enhanced risk assessment when available.
         """
         violation_categories = set()
         jurisdiction_risks = {}
         financial_risk = 0.0
-
+        
+        # Enhanced risk calculation with proper severity weighting
+        base_risk_score = 100
+        risk_deductions = 0
+        
+        # Analyze compliance issues with proper weighting
         for issue in analysis_response.compliance_issues or []:
             violation_categories.add(issue.law)
             
-            # --- REASON FOR CHANGE: Dynamic, Data-Driven Risk Calculation ---
+            # Calculate law-specific risk
             law_risk = self._get_risk_from_law(issue.law, len(issue.missing_requirements))
             financial_risk += law_risk
+            
+            # Deduct points based on number of missing requirements
+            missing_count = len(issue.missing_requirements)
+            if missing_count >= 4:
+                risk_deductions += 25  # Severe compliance gaps
+            elif missing_count >= 2:
+                risk_deductions += 15  # Moderate compliance gaps
+            else:
+                risk_deductions += 8   # Minor compliance gaps
             
             jurisdiction = analysis_response.jurisdiction or "MY"
             if jurisdiction not in jurisdiction_risks:
                 jurisdiction_risks[jurisdiction] = 0
-            jurisdiction_risks[jurisdiction] += int(law_risk / 1000) # Convert to a simple score
+            jurisdiction_risks[jurisdiction] += int(law_risk / 1000)
 
-        # The severity multiplier logic remains a good heuristic
-        severity_multiplier = self._calculate_severity_multiplier(analysis_response.flagged_clauses)
+        # Analyze flagged clauses with severe penalties for high-risk issues
+        high_severity_count = 0
+        medium_severity_count = 0
+        low_severity_count = 0
+        
+        for clause in analysis_response.flagged_clauses or []:
+            if clause.severity == "high":
+                high_severity_count += 1
+                risk_deductions += 20  # Significant penalty for high severity
+            elif clause.severity == "medium":
+                medium_severity_count += 1
+                risk_deductions += 12  # Moderate penalty for medium severity
+            elif clause.severity == "low":
+                low_severity_count += 1
+                risk_deductions += 5   # Minor penalty for low severity
+
+        # Calculate severity multiplier for financial risk
+        severity_multiplier = self._calculate_enhanced_severity_multiplier(
+            high_severity_count, medium_severity_count, low_severity_count
+        )
         financial_risk *= severity_multiplier
         
-        # This scoring logic is fine, maybe adjust the denominator based on testing
-        overall_score = max(0, 100 - int(financial_risk / 50000))
+        # Apply additional penalties for combinations of issues
+        total_issues = len(analysis_response.compliance_issues or []) + len(analysis_response.flagged_clauses or [])
+        if total_issues >= 5:
+            risk_deductions += 15  # Multiple issues compound risk
+        elif total_issues >= 3:
+            risk_deductions += 8
+        
+        # Calculate final score with minimum threshold
+        overall_score = max(10, base_risk_score - risk_deductions)
+        
+        # Use IBM Granite for enhanced risk assessment if available
+        if self.watsonx_client and hasattr(self.watsonx_client, 'assess_risk_score'):
+            try:
+                granite_assessment = await self._get_granite_risk_assessment(analysis_response)
+                if granite_assessment:
+                    # Blend our calculated score with Granite's assessment
+                    overall_score = int((overall_score * 0.7) + (granite_assessment * 0.3))
+                    logger.info(f"Blended risk score: calculated={base_risk_score - risk_deductions}, granite={granite_assessment}, final={overall_score}")
+            except Exception as e:
+                logger.warning(f"Granite risk assessment failed, using calculated score: {e}")
 
         return ComplianceRiskScore(
             overall_score=overall_score,
-            financial_risk_estimate=financial_risk,
+            financial_risk_estimate=int(financial_risk),
             violation_categories=list(violation_categories),
             jurisdiction_risks=jurisdiction_risks
         )
 
+    async def _get_granite_risk_assessment(self, analysis_response: ContractAnalysisResponse) -> int:
+        """
+        Use IBM Granite AI to provide an independent risk assessment score.
+        This provides a second opinion on risk scoring for better accuracy.
+        """
+        try:
+            # Prepare risk assessment prompt for Granite
+            risk_prompt = self._build_granite_risk_prompt(analysis_response)
+            
+            # Use Granite model for risk assessment
+            granite_response = self.watsonx_client.generate_text(
+                prompt=risk_prompt,
+                max_tokens=200,
+                temperature=0.1  # Low temperature for consistent scoring
+            )
+            
+            # Extract numeric score from Granite's response
+            import re
+            score_match = re.search(r'RISK_SCORE:\s*(\d+)', granite_response)
+            if score_match:
+                granite_score = int(score_match.group(1))
+                # Validate score is in reasonable range
+                if 0 <= granite_score <= 100:
+                    logger.info(f"Granite risk assessment: {granite_score}/100")
+                    return granite_score
+                    
+            logger.warning(f"Could not extract valid risk score from Granite response: {granite_response}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Granite risk assessment failed: {e}")
+            return None
+    
+    def _build_granite_risk_prompt(self, analysis_response: ContractAnalysisResponse) -> str:
+        """
+        Build a structured prompt for IBM Granite to assess compliance risk.
+        """
+        flagged_summary = []
+        for clause in analysis_response.flagged_clauses or []:
+            flagged_summary.append(f"- {clause.severity.upper()}: {clause.issue}")
+        
+        compliance_summary = []
+        for issue in analysis_response.compliance_issues or []:
+            missing_count = len(issue.missing_requirements)
+            compliance_summary.append(f"- {issue.law}: {missing_count} missing requirements")
+        
+        prompt = f"""You are a legal compliance risk assessor. Analyze this contract assessment and provide a risk score from 0-100 where:
+- 90-100: Minimal risk (0-1 minor issues)
+- 70-89: Low risk (2-3 minor issues or 1 moderate issue)
+- 50-69: Medium risk (multiple moderate issues or 1 high-severity issue)
+- 30-49: High risk (multiple high-severity issues)
+- 0-29: Critical risk (severe compliance violations)
+
+CONTRACT ANALYSIS RESULTS:
+Jurisdiction: {analysis_response.jurisdiction}
+
+FLAGGED CLAUSES ({len(analysis_response.flagged_clauses or [])} total):
+{chr(10).join(flagged_summary) if flagged_summary else "None"}
+
+COMPLIANCE ISSUES ({len(analysis_response.compliance_issues or [])} laws affected):
+{chr(10).join(compliance_summary) if compliance_summary else "None"}
+
+Consider:
+1. High-severity clause issues significantly reduce the score
+2. Multiple missing compliance requirements compound risk
+3. Critical laws (employment, data protection) have higher weight
+4. Combination of clause issues + compliance gaps amplifies risk
+
+Provide your assessment as: RISK_SCORE: [number]"""
+        
+        return prompt
+
     def _get_risk_from_law(self, law_id: str, violation_count: int) -> float:
         """
         Dynamically calculates financial risk based on penalty data in our JSON files.
+        Enhanced with jurisdiction-specific risk factors.
         """
         law_data = self.law_loader.get_law_details(law_id)
         if not law_data or "penalties" not in law_data:
-            return 2000 * violation_count # Default fallback risk
+            # Default risk based on law type
+            if "EMPLOYMENT" in law_id.upper():
+                return 15000 * violation_count  # Employment law violations are costly
+            elif "PDPA" in law_id or "GDPR" in law_id or "CCPA" in law_id:
+                return 25000 * violation_count  # Data protection fines are severe
+            else:
+                return 8000 * violation_count   # General contract law
 
         penalties = law_data["penalties"]
         risk_level = penalties.get("risk_level", "medium").lower()
 
-        # Simple heuristic to convert risk level to a monetary value
-        if risk_level == "very high" or risk_level == "high":
-            base_risk = 50000
+        # Enhanced risk calculation based on real-world penalty ranges
+        if risk_level == "very high":
+            base_risk = 75000  # Severe penalties like GDPR
+        elif risk_level == "high":
+            base_risk = 45000  # Significant penalties
         elif risk_level == "medium":
-            base_risk = 10000
+            base_risk = 20000  # Moderate penalties
         else:
-            base_risk = 2000
+            base_risk = 8000   # Minor penalties
             
-        return base_risk * violation_count
+        # Escalate risk for multiple violations of same law
+        escalation_factor = 1.0
+        if violation_count >= 4:
+            escalation_factor = 2.0  # Double risk for severe non-compliance
+        elif violation_count >= 2:
+            escalation_factor = 1.5  # 50% increase for multiple violations
+            
+        return base_risk * violation_count * escalation_factor
+
+    def _calculate_enhanced_severity_multiplier(self, high_count: int, medium_count: int, low_count: int) -> float:
+        """
+        Enhanced severity multiplier that properly escalates financial risk based on issue severity.
+        """
+        base_multiplier = 1.0
+        
+        # High severity issues have exponential impact
+        if high_count > 0:
+            base_multiplier += (high_count * 0.8)  # Each high severity adds 80% to financial risk
+        
+        # Medium severity issues have significant impact
+        if medium_count > 0:
+            base_multiplier += (medium_count * 0.4)  # Each medium severity adds 40%
+        
+        # Low severity issues have minimal impact
+        if low_count > 0:
+            base_multiplier += (low_count * 0.15)  # Each low severity adds 15%
+        
+        # Cap the multiplier at a reasonable maximum
+        return min(base_multiplier, 4.0)
 
     def _calculate_severity_multiplier(self, flagged_clauses: List[ClauseFlag]) -> float:
+        """
+        Legacy method maintained for backward compatibility.
+        """
         high_count = len([c for c in flagged_clauses if c.severity == "high"])
         medium_count = len([c for c in flagged_clauses if c.severity == "medium"])
-        return 1.0 + (high_count * 0.5) + (medium_count * 0.2)
+        low_count = len([c for c in flagged_clauses if c.severity == "low"])
+        return self._calculate_enhanced_severity_multiplier(high_count, medium_count, low_count)
 
     def _get_mock_ai_response(self) -> str:
         mock_data = {
@@ -411,7 +575,7 @@ class ContractAnalyzerService:
         # Split by numbered sections first
         numbered_splits = re.split(r'\n\s*(\d+)\.\s*([^\n]+)', contract_text)
         
-        if len(numbered_splits) > 3:  # We have numbered sections
+        if len(numbered_splits) > 3: # We have numbered sections
             for i in range(1, len(numbered_splits), 3):
                 if i+2 < len(numbered_splits):
                     section_number = numbered_splits[i]
