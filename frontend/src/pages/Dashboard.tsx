@@ -18,7 +18,7 @@ export default function Dashboard() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 to-slate-950 text-gray-100 font-sans antialiased">
-            <Header></Header>
+            <Header />
 
             {/* Hero section */}
             <section className="relative py-24 px-4 sm:px-6 lg:px-8 text-center overflow-hidden">
