@@ -1,7 +1,9 @@
 # 🛡️ Legal Guard RegTech
 
+
 > **IBM TechXchange Hackathon 2025 Submission**  
 > *Democratizing Legal Intelligence Through AI-Powered Document Analysis*
+[![Watch the demo](https://img.youtube.com/vi/v11iNBuYcpY/0.jpg)](https://youtu.be/v11iNBuYcpY)
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
