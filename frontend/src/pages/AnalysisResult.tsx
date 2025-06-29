@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle, XCircle, Shield, BookOpen, ArrowLeft, Download, FileText } from 'lucide-react';
 import Header from '../components/layout/Header';
+import RiskScoreDisplay from '../components/RiskScoreDisplay';
+import { calculateRiskScore } from '../services/contractService';
 
 interface FlaggedClause {
     clause_text: string;
@@ -22,11 +24,20 @@ interface AnalysisResult {
     jurisdiction: string;
 }
 
+interface ComplianceRiskScore {
+    overall_score: number;
+    financial_risk_estimate: number;
+    violation_categories: string[];
+    jurisdiction_risks: Record<string, number>;
+}
+
 export default function AnalysisResults() {
     const { analysisId } = useParams<{ analysisId: string }>();
     const navigate = useNavigate();
     const [result, setResult] = useState<AnalysisResult | null>(null);
+    const [riskScore, setRiskScore] = useState<ComplianceRiskScore | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadingRiskScore, setLoadingRiskScore] = useState(false);
 
     useEffect(() => {
         if (!analysisId) {
@@ -39,6 +50,9 @@ export default function AnalysisResults() {
             try {
                 const parsedResult = JSON.parse(storedResult);
                 setResult(parsedResult);
+                
+                // Fetch risk score
+                fetchRiskScore(parsedResult);
             } catch (error) {
                 console.error('Error parsing stored result:', error);
                 navigate('/analyze');
@@ -48,6 +62,19 @@ export default function AnalysisResults() {
         }
         setLoading(false);
     }, [analysisId, navigate]);
+
+    const fetchRiskScore = async (analysisResult: AnalysisResult) => {
+        try {
+            setLoadingRiskScore(true);
+            const response = await calculateRiskScore(analysisResult);
+            setRiskScore(response.data);
+        } catch (error) {
+            console.error('Error fetching risk score:', error);
+            // Continue without risk score if it fails
+        } finally {
+            setLoadingRiskScore(false);
+        }
+    };
 
     const getSeverityColor = (severity: string) => {
         switch (severity) {
@@ -153,6 +180,24 @@ export default function AnalysisResults() {
                         </div>
                     </div>
                 </div>
+
+                {/* Risk Score Section */}
+                {riskScore && (
+                    <div className="mb-8">
+                        <RiskScoreDisplay riskScore={riskScore} jurisdiction={result.jurisdiction} />
+                    </div>
+                )}
+
+                {loadingRiskScore && (
+                    <div className="mb-8">
+                        <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 shadow-xl">
+                            <div className="flex items-center gap-4">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+                                <p className="text-gray-300">Calculating compliance risk score...</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="grid lg:grid-cols-2 gap-8">
                     {/* Flagged Clauses */}

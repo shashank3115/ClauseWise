@@ -21,8 +21,12 @@ export const analyzeBulkContract = (formData: FormData) =>
     api.post('/api/v1/contracts/analyze/bulk', formData);
 
 // Calculate Risk Score
-export const riskScore = (formData: FormData) =>
-    api.post('/api/v1/contracts/risk-score', formData);
+export const calculateRiskScore = (analysisData: any) =>
+    api.post('/api/v1/contracts/risk-score', analysisData, {
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
 
 // Extract Text from Contract File
 export const extractText = (formData: FormData) =>
