@@ -100,7 +100,6 @@ export default function Header() {
                 <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
                     <Link to="/dashboard" className="text-gray-300 hover:text-blue-300">Dashboard</Link>
                     <Link to="/analyze" className="text-gray-300 hover:text-blue-300">Analyze</Link>
-                    <Link to="/bulk-analyze" className="text-gray-300 hover:text-blue-300">Bulk Analysis</Link>
                     <Link to="/ai-insights" className="text-gray-300 hover:text-blue-300">AI Insights</Link>
                     <Link to="/compliance" className="text-gray-300 hover:text-blue-300">Compliance</Link>
                     <Link to="/regulations" className="text-gray-300 hover:text-blue-300">Regulations</Link>
