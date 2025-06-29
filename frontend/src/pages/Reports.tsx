@@ -152,8 +152,8 @@ export default function Reports() {
                                 <p className="text-2xl font-bold text-white">
                                     {filteredContractHistory.length > 0
                                         ? Math.round(
-                                              filteredContractHistory.reduce((sum, c) => sum + c.complianceScore, 0) / filteredContractHistory.length
-                                          )
+                                                filteredContractHistory.reduce((sum, c) => sum + c.complianceScore, 0) / filteredContractHistory.length
+                                            )
                                         : 0}%
                                 </p>
                             </div>
@@ -220,7 +220,7 @@ export default function Reports() {
                     </div>
                 </section>
 
-                {/* Contract History Table */}
+                {/* Contract Analysis History */}
                 <section className="bg-slate-800 p-6 rounded-lg shadow-2xl border border-slate-700 mb-8">
                     <h2 className="text-xl font-semibold text-blue-300 mb-4 flex items-center gap-2">
                         <FileText className="w-6 h-6" /> Contract Analysis History
@@ -243,7 +243,7 @@ export default function Reports() {
                                         <td className="px-6 py-4 text-sm text-gray-300">{c.dateAnalyzed}</td>
                                         <td className="px-6 py-4 text-sm text-gray-300">{c.complianceScore}%</td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2 inline-flex text-xs rounded-full border 
+                                            <span className={`px-2 inline-flex text-xs rounded-full border
                                                 ${c.riskLevel === 'High'
                                                     ? 'bg-red-700/30 text-red-300 border-red-500'
                                                     : c.riskLevel === 'Medium'
