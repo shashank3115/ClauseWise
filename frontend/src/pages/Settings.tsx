@@ -1,23 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Bell, Key, Globe, Save } from 'lucide-react';
 import Header from '../components/layout/Header.tsx';
-
-// Not linked with other pages yet
+import { getJurisdictions } from '../services/regulatoryService.ts';
 
 export default function Settings() {
-    const [defaultJurisdiction, setDefaultJurisdiction] = useState('MY');
     const [emailNotifications, setEmailNotifications] = useState(true);
     const [smsNotifications, setSmsNotifications] = useState(false);
     // Mock data used here
     const [apiKey, setApiKey] = useState('sk-********************xyz');
-    const [userName, setUserName] = useState('John Doe');
-    const [userEmail, setUserEmail] = useState('john.doe@example.com');
+    const [userName, setUserName] = useState('Super Admin');
+    const [userEmail, setUserEmail] = useState('superadmin@legalguard.com');
 
-    const jurisdictions = ['MY', 'SG', 'EU', 'US'];
+    const [jurisdiction, setJurisdiction] = useState('');
+    const [jurisdictions, setJurisdictions] = useState<{ code: string; name: string }[]>([]);
 
     const handleSaveSettings = () => {
         console.log('Saving settings:', {
-        defaultJurisdiction,
+        jurisdiction,
         emailNotifications,
         smsNotifications,
         userName,
@@ -41,6 +40,35 @@ export default function Settings() {
         document.body.removeChild(el);
         alert('API Key copied to clipboard!');
     };
+
+    useEffect(() => {
+            const fetchJurisdictions = async () => {
+                try {
+                    const response = await getJurisdictions();
+                    console.log("Fetched jurisdictions:", response);
+
+                    const codes: string[] = response?.data?.jurisdictions ?? [];
+
+                    const JURISDICTION_NAMES: Record<string, string> = {
+                        MY: 'Malaysia',
+                        SG: 'Singapore',
+                        EU: 'European Union',
+                        US: 'United States'
+                    };
+
+                    const formatted = codes.map(code => ({
+                        code,
+                        name: JURISDICTION_NAMES[code] || code,
+                    }));
+
+                    setJurisdictions(formatted);
+                } catch (error) {
+                    console.error('Failed to fetch jurisdictions:', error);
+                }
+            };
+
+            fetchJurisdictions();
+        }, []);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 to-slate-950 text-gray-100 font-sans">
@@ -87,14 +115,16 @@ export default function Settings() {
                 Preferred Jurisdiction for Analysis
             </label>
             <select
-                id="default-jurisdiction"
-                className="w-full px-3 py-2 border border-slate-600 rounded-md bg-slate-700 text-gray-200"
-                value={defaultJurisdiction}
-                onChange={(e) => setDefaultJurisdiction(e.target.value)}
-            >
-                {jurisdictions.map((jur) => (
-                <option key={jur} value={jur}>{jur}</option>
-                ))}
+                    value={jurisdiction}
+                    onChange={(e) => setJurisdiction(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-600 rounded-md bg-slate-700 text-gray-200"
+                    >
+                    <option value="">Select jurisdiction</option>
+                    {jurisdictions.map((j) => (
+                        <option key={j.code} value={j.code}>
+                        {j.name}
+                        </option>
+                    ))}
             </select>
             </section>
 

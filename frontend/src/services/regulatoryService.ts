@@ -17,6 +17,5 @@ export const searchRegulations = (payload: {
     return api.post('/regulations/search', payload);
 };
 
-export const getJurisdictions = () => {
-    return api.post('/api/regulations/jurisdictions/list');
-};
+export const getJurisdictions = () =>
+    api.get('/regulations/jurisdictions/list')

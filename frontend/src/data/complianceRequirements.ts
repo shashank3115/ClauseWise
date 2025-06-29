@@ -1,18 +1,18 @@
 export const complianceChecklist = {
     employment_laws_my: {
         requirements: [
-            "termination_clause",
-            "minimum_wage_compliance",
-            "overtime_provisions",
-            "annual_leave_entitlement",
-            "notice_period_requirements"
+            "Termination_Clause",
+            "Minimum_Wage_Compliance",
+            "Overtime_Provisions",
+            "Annual_Leave_Entitlement",
+            "Notice_Period_Requirements"
         ]
     },
     data_protection: {
         requirements: [
-            "data_processing_notice",
-            "consent_mechanism",
-            "data_retention_policy"
+            "Data_Processing_Notice",
+            "Consent_Mechanism",
+            "Data_Retention_Policy"
         ]
     }
 };
