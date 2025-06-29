@@ -31,9 +31,7 @@ export default function Analyze() {
                     MY: 'Malaysia',
                     SG: 'Singapore',
                     EU: 'European Union',
-                    US: 'United States',
-                    UK: 'United Kingdom',
-                    GL: 'Global',
+                    US: 'United States'
                 };
 
                 const formatted = codes.map(code => ({
