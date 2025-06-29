@@ -128,17 +128,27 @@ class TextSanitizer:
         return cleaned.strip()
     
     def _normalize_whitespace(self, text: str) -> str:
-        """Normalize whitespace and line breaks."""
-        # Remove excessive whitespace
-        text = re.sub(r'\s+', ' ', text.strip())
+        """Normalize whitespace while preserving document structure for legal analysis."""
+        # Remove excessive spaces within lines, but preserve line breaks
+        lines = text.split('\n')
+        normalized_lines = []
         
-        # Fix hyphenated line breaks
-        text = re.sub(r'-\n', '', text)
+        for line in lines:
+            # Normalize spaces within each line
+            normalized_line = re.sub(r'[ \t]+', ' ', line.strip())
+            normalized_lines.append(normalized_line)
         
-        # Normalize line breaks
-        text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)
+        # Join lines back with single line breaks
+        text = '\n'.join(normalized_lines)
         
-        return text
+        # Fix hyphenated line breaks (but preserve intentional line breaks)
+        text = re.sub(r'-\n(?=[a-z])', '', text)
+        
+        # Normalize excessive line breaks (3+ become 2) but preserve structure
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        
+        # Remove leading/trailing whitespace
+        return text.strip()
     
     def _remove_page_artifacts(self, text: str) -> str:
         """Remove common page artifacts."""

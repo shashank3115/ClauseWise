@@ -136,14 +136,18 @@ Return ONLY valid JSON in this exact format (no additional text):
   ],
   "compliance_issues": [
     {{
-      "law": "SPECIFIC_LAW_ID",
+      "law": "PDPA_MY",
       "missing_requirements": ["Detailed list of missing legal requirements"],
       "recommendations": ["Specific actionable legal recommendations"]
     }}
   ]
 }}
 
-IMPORTANT: Analyze the actual contract text thoroughly. Identify real issues, not generic problems. Be specific about violations and provide actionable recommendations.
+IMPORTANT: 
+- Use actual law IDs like "PDPA_MY", "GDPR_EU", "CCPA_US", "EMPLOYMENT_ACT_MY" - NEVER use "SPECIFIC_LAW_ID"
+- Analyze the actual contract text thoroughly. Identify real issues, not generic problems. 
+- Be specific about violations and provide actionable recommendations.
+- Do not use placeholder text like "Detailed list of missing legal requirements" - provide actual specific requirements.
 
 Analyze thoroughly and identify ALL significant compliance gaps."""
     
