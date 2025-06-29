@@ -10,6 +10,7 @@ import Settings from './pages/Settings'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import AdminManagement from './pages/AdminManagement'
+import AIInsights from './pages/AIInsights'
 import ProtectedRoute from './components/ProtectedRoute'
 import AnalysisResults from './pages/AnalysisResult'
 
@@ -43,6 +44,11 @@ export default function App() {
         <Route path='/bulk-analyze' element={
           <ProtectedRoute>
             <BulkAnalyze />
+          </ProtectedRoute>
+        } />
+        <Route path='/ai-insights' element={
+          <ProtectedRoute>
+            <AIInsights />
           </ProtectedRoute>
         } />
         <Route path='/reports' element={

@@ -1,4 +1,4 @@
-import { FileText, Gauge, AlertCircle, BookText, ChevronRight } from 'lucide-react';
+import { FileText, Gauge, AlertCircle, BookText, ChevronRight, Brain } from 'lucide-react';
 import Header from '../components/layout/Header';
 
 export default function Dashboard() {
@@ -106,6 +106,19 @@ export default function Dashboard() {
                             <div className="flex-grow">
                                 <h4 className="text-base font-medium text-white leading-snug">Compliance Dashboard</h4>
                                 <p className="text-xs text-gray-300 mt-0.5 leading-snug">Access Compliance Dashboard</p>
+                            </div>
+                            <ChevronRight className="ml-auto w-5 h-5 text-blue-400 group-hover:translate-x-1 transition-transform duration-200" />
+                            </a>
+                            <a
+                            href="/ai-insights"
+                            className="flex items-center gap-4 p-4 border border-slate-700 rounded-md hover:bg-slate-700/20 group transform hover:translate-x-1 hover:shadow-md transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800"
+                            >
+                            <div className="p-3 bg-purple-700/50 text-purple-200 rounded-md group-hover:bg-purple-700/70 flex-shrink-0 shadow-sm">
+                                <Brain className="w-5 h-5" />
+                            </div>
+                            <div className="flex-grow">
+                                <h4 className="text-base font-medium text-white leading-snug">AI Insights</h4>
+                                <p className="text-xs text-gray-300 mt-0.5 leading-snug">Get AI-powered document summaries</p>
                             </div>
                             <ChevronRight className="ml-auto w-5 h-5 text-blue-400 group-hover:translate-x-1 transition-transform duration-200" />
                             </a>
