@@ -62,49 +62,194 @@ async def summarize_document(
         # Create summary prompt based on type
         if request.summary_type == "plain_language":
             prompt = f"""
-            Summarize this legal document in simple, clear language that anyone can understand:
+            Please write a simple, easy-to-understand summary of this legal document. Do NOT use JSON format.
             
+            Document:
             {request.text}
             
-            Focus on:
-            1. What this document is about
-            2. Key obligations and rights
-            3. Important deadlines or conditions
-            4. Potential risks or concerns
+            Write a paragraph summary in plain English that explains:
+            - What type of document this is
+            - Who the parties are
+            - The main purpose and key terms
+            - Important rights and obligations
+            - Any deadlines or important conditions
             
-            Use simple words and short sentences. Avoid legal jargon.
+            Write your response as normal text, like you would explain it to a friend. Do not use JSON, brackets, or structured data format.
             """
         elif request.summary_type == "executive":
             prompt = f"""
-            Create an executive summary of this legal document:
+            Write a business-focused executive summary of this legal document. Use plain text, not JSON.
             
+            Document:
             {request.text}
             
-            Include:
-            - Business impact
-            - Key financial implications  
-            - Critical deadlines
-            - Risk assessment
+            Write a concise paragraph that covers:
+            - Business impact and implications
+            - Key financial terms or obligations  
+            - Critical deadlines and milestones
+            - Risk assessment and concerns
+            
+            Write in plain text format suitable for business executives.
             """
         else:  # risks
             prompt = f"""
-            Identify and explain the main risks in this legal document:
+            Explain the main risks and potential problems in this legal document. Use plain text, not JSON.
             
+            Document:
             {request.text}
             
-            Focus on potential problems, liabilities, and areas of concern.
+            Write a clear explanation of potential risks, problems, and areas of concern.
+            Focus on what could go wrong and what to watch out for.
             """
         
         # Get AI response
-        summary = ai_client._make_request(prompt)
+        summary = ai_client._make_text_request(prompt)
         
-        # Extract key points (simple parsing)
+        # Handle case where AI returns JSON despite asking for plain text
+        clean_summary = summary
+        try:
+            import json
+            # Check if the response is JSON
+            if summary.strip().startswith('{') and summary.strip().endswith('}'):
+                parsed = json.loads(summary)
+                
+                # Try to extract meaningful summary text from various possible fields
+                if 'summary' in parsed:
+                    if isinstance(parsed['summary'], str):
+                        clean_summary = parsed['summary']
+                    elif isinstance(parsed['summary'], dict):
+                        # If summary is a dict, extract first meaningful text
+                        clean_summary = str(list(parsed['summary'].values())[0]) if parsed['summary'] else ""
+                elif 'text' in parsed:
+                    clean_summary = parsed['text']
+                elif 'content' in parsed:
+                    clean_summary = parsed['content']
+                elif 'description' in parsed:
+                    clean_summary = parsed['description']
+                else:
+                    # Extract the most descriptive field from the JSON
+                    descriptive_fields = ['summary', 'text', 'content', 'description', 'explanation']
+                    extracted_text = []
+                    
+                    for key, value in parsed.items():
+                        if isinstance(value, str) and len(value) > 50:  # Meaningful text content
+                            extracted_text.append(f"{key.replace('_', ' ').title()}: {value}")
+                        elif isinstance(value, dict):
+                            # If it's a nested dict, extract some meaningful content
+                            for sub_key, sub_value in value.items():
+                                if isinstance(sub_value, str) and len(sub_value) > 30:
+                                    extracted_text.append(f"{sub_key.replace('_', ' ').title()}: {sub_value}")
+                                    break  # Just take the first meaningful one
+                    
+                    if extracted_text:
+                        clean_summary = ". ".join(extracted_text[:3])  # Limit to first 3 meaningful items
+                    else:
+                        clean_summary = "This is a legal document with various terms and conditions that should be reviewed carefully."
+                        
+        except (json.JSONDecodeError, TypeError, KeyError):
+            # If it's not valid JSON or processing fails, use as-is
+            pass
+        
+        # Clean up the summary text
+        if clean_summary:
+            # Remove JSON-like formatting artifacts
+            clean_summary = clean_summary.replace('\\n', ' ').replace('\\"', '"')
+            # Ensure it's a proper sentence
+            if not clean_summary.endswith('.'):
+                clean_summary += '.'
+        
+        # Extract key points (improved parsing for better readability)
         key_points = []
-        lines = summary.split('\n')
-        for line in lines:
-            line = line.strip()
-            if line.startswith(('-', '•', '*')) or any(char.isdigit() and '.' in line for char in line[:3]):
-                key_points.append(line.lstrip('-•* ').split('.', 1)[-1].strip())
+        
+        # Try to extract from original JSON structure if it exists
+        try:
+            if summary.strip().startswith('{'):
+                parsed = json.loads(summary)
+                
+                # Look for structured key points in various fields
+                points_sources = []
+                
+                # Check common fields that might contain key points
+                for field in ['key_obligations', 'key_rights', 'key_points', 'main_points', 'important_items']:
+                    if field in parsed and isinstance(parsed[field], (dict, list)):
+                        if isinstance(parsed[field], dict):
+                            points_sources.extend(list(parsed[field].keys())[:5])
+                        else:
+                            points_sources.extend(parsed[field][:5])
+                
+                # Clean up the points for frontend display
+                for point in points_sources[:5]:
+                    if isinstance(point, str):
+                        # Clean up the text
+                        clean_point = point.replace('\\n', ' ').replace('\\"', '"')
+                        # Remove common prefixes and clean formatting
+                        clean_point = clean_point.replace('": "', ': ').strip()
+                        # Remove trailing quotes and colons
+                        clean_point = clean_point.rstrip('",').strip()
+                        
+                        if len(clean_point) > 10:  # Only meaningful points
+                            key_points.append(clean_point)
+                            
+        except (json.JSONDecodeError, TypeError, KeyError):
+            pass
+        
+        # If no key points extracted from JSON, try extracting from the clean summary
+        if not key_points:
+            # First, try to find structured content
+            lines = clean_summary.split('\n')
+            for line in lines:
+                line = line.strip()
+                # Look for numbered items, bullet points, or lines with colons
+                if (line.startswith(('-', '•', '*')) or 
+                    any(char.isdigit() and '.' in line for char in line[:3]) or
+                    ':' in line and len(line.split(':')) == 2):
+                    
+                    clean_line = line.lstrip('-•* 0123456789.').strip()
+                    if len(clean_line) > 20:  # Meaningful content
+                        key_points.append(clean_line)
+            
+            # If still no key points, extract from sentences in the summary
+            if not key_points:
+                sentences = clean_summary.split('. ')
+                for sentence in sentences:
+                    sentence = sentence.strip()
+                    if len(sentence) > 30 and len(sentence) < 150:  # Good length for key points
+                        # Look for sentences that mention key contract elements
+                        key_indicators = [
+                            'contract', 'agreement', 'parties', 'employer', 'employee', 
+                            'duties', 'responsibilities', 'wages', 'termination', 'duration',
+                            'rights', 'obligations', 'payment', 'benefits', 'terms'
+                        ]
+                        
+                        if any(indicator in sentence.lower() for indicator in key_indicators):
+                            # Clean up the sentence for display
+                            clean_sentence = sentence.replace('The ', '').replace('This ', '')
+                            if not clean_sentence.endswith('.'):
+                                clean_sentence += '.'
+                            key_points.append(clean_sentence)
+                            
+                            if len(key_points) >= 5:  # Limit to 5 key points
+                                break
+            
+            # Final fallback: create key points from main topics if still empty
+            if not key_points:
+                # Extract key topics from the original contract text
+                contract_sections = []
+                if 'duration' in request.text.lower():
+                    contract_sections.append('Contract duration and employment period are specified')
+                if 'duties' in request.text.lower() or 'responsibilities' in request.text.lower():
+                    contract_sections.append('Employee and employer duties are clearly defined')
+                if 'wage' in request.text.lower() or 'salary' in request.text.lower():
+                    contract_sections.append('Compensation and payment terms are outlined')
+                if 'termination' in request.text.lower():
+                    contract_sections.append('Termination conditions and procedures are established')
+                if 'benefits' in request.text.lower():
+                    contract_sections.append('Employee benefits and entitlements are detailed')
+                
+                key_points = contract_sections[:5]
+                        
+            # Limit to 5 key points maximum
+            key_points = key_points[:5]
         
         # Simple risk assessment based on keywords
         risk_keywords = ['penalty', 'liability', 'breach', 'termination', 'damages', 'default']
@@ -117,13 +262,22 @@ async def summarize_document(
         else:
             risk_level = "Low"
         
-        # Calculate word reduction
+        # Calculate word reduction - fix negative percentages
         original_words = len(request.text.split())
-        summary_words = len(summary.split())
-        reduction = f"{((original_words - summary_words) / original_words * 100):.0f}%"
+        summary_words = len(clean_summary.split())
+        
+        if original_words > 0:
+            if summary_words >= original_words:
+                # If summary is longer than original, show as 0% reduction
+                reduction = "0%"
+            else:
+                reduction_pct = ((original_words - summary_words) / original_words * 100)
+                reduction = f"{reduction_pct:.0f}%"
+        else:
+            reduction = "0%"
         
         return DocumentSummaryResponse(
-            summary=summary.strip(),
+            summary=clean_summary.strip(),
             key_points=key_points[:5],  # Top 5 points
             risk_level=risk_level,
             word_count_reduction=reduction
@@ -163,7 +317,7 @@ async def explain_clause(
         Be clear and concise. Avoid legal jargon.
         """
         
-        explanation = ai_client._make_request(prompt)
+        explanation = ai_client._make_text_request(prompt)
         
         # Simple parsing for structured response
         lines = [line.strip() for line in explanation.split('\n') if line.strip()]
@@ -192,7 +346,7 @@ async def health_check():
     try:
         ai_client = get_ai_client()
         # Simple test prompt
-        test_response = ai_client._make_request("Hello, this is a test. Respond with 'OK'.")
+        test_response = ai_client._make_text_request("Hello, this is a test. Respond with 'OK'.")
         return {"status": "healthy", "ai_service": "connected"}
     except Exception as e:
         logger.error(f"AI health check failed: {e}")

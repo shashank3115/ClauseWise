@@ -45,14 +45,50 @@ class WatsonXClient:
     
     def _make_request(self, prompt: str, system_message: Optional[str] = None) -> str:
         """
-        Make a request to the WatsonX API.
+        Make a request to the WatsonX API for structured JSON responses.
         
         Args:
             prompt: The formatted prompt to send
             system_message: Optional system message for context
             
         Returns:
-            Generated text response from the model
+            Generated text response from the model as JSON
+            
+        Raises:
+            APIError: If the API request fails
+            ResponseParsingError: If response cannot be parsed
+        """
+        response_text = self._make_raw_request(prompt, system_message)
+        # Clean the response to extract just the JSON part
+        cleaned_response = self._extract_json_from_response(response_text)
+        return cleaned_response
+    
+    def _make_text_request(self, prompt: str, system_message: Optional[str] = None) -> str:
+        """
+        Make a request to the WatsonX API for plain text responses.
+        
+        Args:
+            prompt: The formatted prompt to send
+            system_message: Optional system message for context
+            
+        Returns:
+            Generated text response from the model as plain text
+            
+        Raises:
+            APIError: If the API request fails
+        """
+        return self._make_raw_request(prompt, system_message)
+    
+    def _make_raw_request(self, prompt: str, system_message: Optional[str] = None) -> str:
+        """
+        Make a raw request to the WatsonX API without response processing.
+        
+        Args:
+            prompt: The formatted prompt to send
+            system_message: Optional system message for context
+            
+        Returns:
+            Raw generated text response from the model
             
         Raises:
             APIError: If the API request fails
@@ -112,9 +148,7 @@ class WatsonXClient:
                 generated_text = result["results"][0]["generated_text"]
                 logger.debug(f"Successfully received response from WatsonX")
                 
-                # Clean the response to extract just the JSON part
-                cleaned_response = self._extract_json_from_response(generated_text)
-                return cleaned_response
+                return generated_text
             else:
                 logger.error(f"Unexpected response format: {result}")
                 raise ResponseParsingError("Invalid response format from WatsonX", str(result))
