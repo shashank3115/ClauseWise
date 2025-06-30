@@ -1,4 +1,1 @@
 *.ipynb linguist-vendored
-*.ipynb linguist-documentation
-*.ipynb linguist-generated
-*.ipynb linguist-notebook
