@@ -47,13 +47,5 @@ Push and create a PR
 ### 📜 License
 
 This project is licensed under the MIT License.
-```sql
 
-3. Save & exit (**CTRL+O, Enter, CTRL+X**).  
 
-4. Commit it:
-   ```bash
-   git add README.md
-   git commit -m "Added README.md"
-   git push
-```
